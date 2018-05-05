@@ -61,10 +61,10 @@ ___
 ### info.json Explanation
 ```
 "songName" - Name of your song
-"songSubName" - 
+"songSubName" - Text rendered in smaller letters next to song name. (ft. Artist)
 "beatsPerMinute" - BPM of the song you are using
 "previewStartTime" - How many seconds into the song the preview should start
-"previewDuration" - Time in seconds song will be previewed in selection screen
+"previewDuration" - Time in seconds the song will be previewed in selection screen
 "coverImagePath" - Cover image name
 "environmentName" - Game environment to be used
 
