@@ -9,16 +9,19 @@ An injector for adding custom songs into Beat Saber.
   
     The Beat Saber folder should look something like this:
     * `Beat Saber_Data`
-    * `BSSI`
     * `CustomSongs`
+    * `IPA`
+    * `Plugins`
+    * `Beat Saber (Patch & Launch)`
     * `Beat Saber.exe`
+    * `IPA.exe`
+    * `Mono.Cecil.dll`
     * `UnityPlayer.dll`
  3. Done!
 
 ## Usage
- 1. Launch Beat Saber through the platform you purchased it on.
- 2. While at the main menu, launch `BSSI/BSSI.exe` and press <kbd>Inject</kbd> (If your game crashes go to troubleshooting)	
- 3. Go to 'Solo' -> 'Standard' and your custom song will be available to play at the bottom of the list.	
+ 1. Launch Beat Saber through the platform you purchased it on.	
+ 2. Go to 'Solo' -> 'Standard' and your custom song will be available to play at the bottom of the list.	
 
 
 ## Installing Custom Songs
@@ -86,7 +89,7 @@ All possible environmentNames:
 ```
 ___
 
-## Troubleshooting
+## Troubleshooting (for the old injector version)
 BSSI can be finicky at times and stubborn with injecting.
 
 Steps to help you avoid crashing:
