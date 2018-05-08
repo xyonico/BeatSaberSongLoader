@@ -87,3 +87,8 @@ All possible environmentNames:
 	}
   ]
 ```
+
+# Keyboard Shortcuts
+*(Make sure Beat Saber's window is in focus when using these shortcuts)*
+---
+ * Press <kbd>R</kbd> when in main menu to update song list for rapid testing.
