@@ -45,8 +45,7 @@ namespace SongLoaderPlugin
 			}
 
 			var hash = Utils.CreateMD5(combinedJson);
-			levelId = hash + "\0" + string.Join("\0", new[] {songName, songSubName, authorName, beatsPerMinute.ToString()});
-			Console.WriteLine("ID=" + levelId);
+			levelId = hash + "∎" + string.Join("∎", new[] {songName, songSubName, authorName, beatsPerMinute.ToString()}) + "∎";
 			return levelId;
 		}
 	}

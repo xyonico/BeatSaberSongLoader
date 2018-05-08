@@ -23,7 +23,7 @@ namespace SongLoaderPlugin
 
 		public void OnApplicationQuit()
 		{
-			PlayerPrefs.SetInt("lbPatched", 0);
+			PlayerPrefs.DeleteKey("lbPatched");
 		}
 
 		public void OnLevelWasLoaded(int level)

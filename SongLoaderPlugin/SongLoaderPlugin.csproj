@@ -71,6 +71,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CustomLevelStaticData.cs" />
     <Compile Include="CustomSongInfo.cs" />
     <Compile Include="ReflectionUtil.cs" />
     <Compile Include="SimpleJSON.cs" />

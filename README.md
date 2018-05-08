@@ -87,14 +87,3 @@ All possible environmentNames:
 	}
   ]
 ```
-___
-
-## Troubleshooting (for the old injector version)
-BSSI can be finicky at times and stubborn with injecting.
-
-Steps to help you avoid crashing:
- * Wait at least 5 seconds after starting Beat Saber before injecting.
- * Put your hand/face over the Oculus Face Sensor so the black mirrored screen on your desktop shows the game before launching BSSI.
- * Make sure there are no 'ghost processes' running in task manager labelled 'BSSI' & 'MonoJunkie'; if there is, end the task.
- * Open Beat Saber before opening BSSI, running as administrator for both is preferred.
- * Do a clean install of BSSI if crashing persists.
