@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using SimpleJSON;
+using SongLoaderPlugin.Internals;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
@@ -13,12 +14,14 @@ namespace SongLoaderPlugin
     public class SongLoader : MonoBehaviour
     {
         public static readonly UnityEvent SongsLoaded = new UnityEvent();
-        public static readonly List<CustomSongInfo> CustomSongs = new List<CustomSongInfo>();
+        public static readonly List<CustomSongInfo> CustomSongInfos = new List<CustomSongInfo>();
+        public static readonly List<CustomLevelStaticData> CustomLevelStaticDatas = new List<CustomLevelStaticData>();
 
         public const int MenuIndex = 1;
-        
-        private MainGameSceneSetupData _sceneSetupData;
+
         private LeaderboardScoreUploader _leaderboardScoreUploader;
+        private SongSelectionMasterViewController _songSelectionView;
+        private DifficultyViewController _difficultyView;
         
         public static void OnLoad()
         {
@@ -32,8 +35,8 @@ namespace SongLoaderPlugin
         {
             Instance = this;
             RefreshSongs();
-
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
+            SceneManagerOnActiveSceneChanged(new Scene(), new Scene());
             
             DontDestroyOnLoad(gameObject);
         }
@@ -41,20 +44,13 @@ namespace SongLoaderPlugin
         private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
         {
             StartCoroutine(WaitRemoveScores());
-            //We need to enable No Energy mode if playing custom song, so game doesn't ping leaderboards.
-            var sceneSetup = FindObjectOfType<MainGameSceneSetup>();
-            if (sceneSetup != null)
-            {
-                //We're in the main game
-                _sceneSetupData = ReflectionUtil.GetPrivateField<MainGameSceneSetupData>(sceneSetup, "_mainGameSceneSetupData");
-                var currentCustomSong = CustomSongs.FirstOrDefault(x => x.levelId == _sceneSetupData.levelId);
-                if (currentCustomSong == null) return;
-            }
-            else
-            {
-                //We're probably in menu
-                
-            }
+            
+            var songListController = Resources.FindObjectsOfTypeAll<SongListViewController>().FirstOrDefault();
+            if (songListController == null) return;
+            songListController.didSelectSongEvent += OnDidSelectSongEvent;
+            
+            _songSelectionView = Resources.FindObjectsOfTypeAll<SongSelectionMasterViewController>().FirstOrDefault();
+            _difficultyView = Resources.FindObjectsOfTypeAll<DifficultyViewController>().FirstOrDefault();
         }
 
         private IEnumerator WaitRemoveScores()
@@ -63,27 +59,52 @@ namespace SongLoaderPlugin
             RemoveCustomScores();
         }
 
+        //To fix the bug explained in CustomLevelStaticData.cs
+        private void OnDidSelectSongEvent(SongListViewController songListViewController)
+        {
+            var song = CustomLevelStaticDatas.FirstOrDefault(x => x.levelId == songListViewController.levelId);
+            if (song == null) return;
+            if (song.difficultyLevels.All(x => x.difficulty != _songSelectionView.difficulty))
+            {
+                var isDiffSelected =
+                    ReflectionUtil.GetPrivateField<bool>(_difficultyView, "_difficultySelected");
+                if (!isDiffSelected) return;
+                //The new selected song does not have the current difficulty selected
+                var firstDiff = song.difficultyLevels.FirstOrDefault();
+                if (firstDiff == null) return;
+                ReflectionUtil.SetPrivateField(_songSelectionView, "_difficulty", firstDiff.difficulty);
+            }
+        }
+
         public void RefreshSongs()
         {
             if (SceneManager.GetActiveScene().buildIndex != MenuIndex) return;
-            var songs = RetrieveSongs();
-
+            Log("Refreshing songs");
+            var songs = RetrieveAllSongs();
+            songs = songs.OrderBy(x => x.songName).ToList();
+            
             var gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
             
             var gameDataModel = PersistentSingleton<GameDataModel>.instance;
             var oldData = gameDataModel.gameStaticData.worldsData[0].levelsData.ToList();
 
-            foreach (var customSongInfo in CustomSongs)
+            foreach (var customSongInfo in CustomSongInfos)
             {
                 oldData.RemoveAll(x => x.levelId == customSongInfo.levelId);
             }
             
-            CustomSongs.Clear();
+            CustomLevelStaticDatas.Clear();
+            CustomSongInfos.Clear();
             
             foreach (var song in songs)
             {
                 var id = song.GetIdentifier();
-                CustomSongs.Add(song);
+                if (songs.Any(x => x.levelId == id && x != song))
+                {
+                    Log("Duplicate song found at " + song.path);
+                    continue;
+                }
+                CustomSongInfos.Add(song);
                 
                 CustomLevelStaticData newLevel = null;
                 try
@@ -158,6 +179,7 @@ namespace SongLoaderPlugin
                 ReflectionUtil.SetPrivateField(newLevel, "_difficultyLevels", difficultyLevels.ToArray());
                 newLevel.OnEnable();
                 oldData.Add(newLevel);
+                CustomLevelStaticDatas.Add(newLevel);
             }
             
             ReflectionUtil.SetPrivateField(gameDataModel.gameStaticData.worldsData[0], "_levelsData", oldData.ToArray());
@@ -178,7 +200,7 @@ namespace SongLoaderPlugin
             {
                 var split = scoreData._leaderboardId.Split('_');
                 var levelID = split[0];
-                if (CustomSongs.Any(x => x.levelId == levelID))
+                if (CustomSongInfos.Any(x => x.levelId == levelID))
                 {
                     Log("Removing a custom score here");
                     scoresToRemove.Add(scoreData);
@@ -193,7 +215,7 @@ namespace SongLoaderPlugin
             using (var www = new WWW(audioPath))
             {
                 yield return www;
-                ReflectionUtil.SetPrivateField(obj, fieldName, www.GetAudioClip());
+                ReflectionUtil.SetPrivateField(obj, fieldName, www.GetAudioClip(true, true, AudioType.UNKNOWN));
             }
         }
 
@@ -210,55 +232,112 @@ namespace SongLoaderPlugin
             }
         }
 
-        private List<CustomSongInfo> RetrieveSongs()
+        private List<CustomSongInfo> RetrieveAllSongs()
         {
             var customSongInfos = new List<CustomSongInfo>();
             var path = Environment.CurrentDirectory;
             path = path.Replace('\\', '/');
+
+            var currentHashes = new List<string>();
+            var cachedSongs = new string[0];
+            if (Directory.Exists(path + "/CustomSongs/.cache"))
+            {
+                cachedSongs = Directory.GetDirectories(path + "/CustomSongs/.cache");
+            }
+            else
+            {
+                Directory.CreateDirectory(path + "/CustomSongs/.cache");
+            }
+
+            var songZips = Directory.GetFiles(path + "/CustomSongs")
+                .Where(x => x.ToLower().EndsWith(".zip") || x.ToLower().EndsWith(".beat")).ToArray();
+            foreach (var songZip in songZips)
+            {
+                Log("Found zip: " + songZip);
+                //Check cache if zip already is extracted
+                string hash;
+                if (Utils.CreateMD5FromFile(songZip, out hash))
+                {
+                    currentHashes.Add(hash);
+                    if (cachedSongs.Any(x => x.Contains(hash))) continue;
+
+                    using (var unzip = new Unzip(songZip))
+                    {
+                        unzip.ExtractToDirectory(path + "/CustomSongs/.cache/" + hash);
+                        Log("Extracted to " + path + "/CustomSongs/.cache/" + hash);
+                    }
+                }
+                else
+                {
+                    Log("Error reading zip " + songZip);
+                }
+            }
             
-            var songFolders = Directory.GetDirectories(path + "/CustomSongs");
+            var songFolders = Directory.GetDirectories(path + "/CustomSongs").ToList();
+            var songCaches = Directory.GetDirectories(path + "/CustomSongs/.cache");
+            
             foreach (var song in songFolders)
             {
-                var songPath = song.Replace('\\', '/');
-                if (!File.Exists(songPath + "/info.json"))
+                var results = Directory.GetFiles(song, "info.json", SearchOption.AllDirectories);
+                if (results.Length == 0)
                 {
-                    Log("Custom song folder '" + songPath + "' is missing info.json!");
+                    Log("Custom song folder '" + song + "' is missing info.json!");
                     continue;
                 }
 
-                var infoText = File.ReadAllText(songPath + "/info.json");
-                CustomSongInfo songInfo;
-                try
+                foreach (var result in results)
                 {
-                    songInfo = JsonUtility.FromJson<CustomSongInfo>(infoText);
+                    var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
+                    customSongInfos.Add(GetCustomSongInfo(songPath));
                 }
-                catch (Exception e)
+            }
+            
+            foreach (var song in songCaches)
+            {
+                var hash = Path.GetFileName(song);
+                if (!currentHashes.Contains(hash))
                 {
-                    Log("Error parsing song: " + songPath);
-                    continue;
+                    //Old cache
+                    Log("Deleting old cache: " + song);
+                    Directory.Delete(song, true);
                 }
-                songInfo.path = songPath;
-
-                //Here comes SimpleJSON to the rescue when JSONUtility can't handle an array.
-                var diffLevels = new List<CustomSongInfo.DifficultyLevel>();
-                var n = JSON.Parse(infoText);
-                var diffs = n["difficultyLevels"];
-                for (int i = 0; i < diffs.AsArray.Count; i++)
-                {
-                    n = diffs[i];
-                    diffLevels.Add(new CustomSongInfo.DifficultyLevel()
-                    {
-                        difficulty = n["difficulty"],
-                        difficultyRank = n["difficultyRank"].AsInt,
-                        audioPath = n["audioPath"],
-                        jsonPath = n["jsonPath"]
-                    });
-                }
-                songInfo.difficultyLevels = diffLevels.ToArray();
-                customSongInfos.Add(songInfo);
             }
 
             return customSongInfos;
+        }
+
+        private CustomSongInfo GetCustomSongInfo(string songPath)
+        {
+            var infoText = File.ReadAllText(songPath + "/info.json");
+            CustomSongInfo songInfo;
+            try
+            {
+                songInfo = JsonUtility.FromJson<CustomSongInfo>(infoText);
+            }
+            catch (Exception e)
+            {
+                Log("Error parsing song: " + songPath);
+                return null;
+            }
+            songInfo.path = songPath;
+
+            //Here comes SimpleJSON to the rescue when JSONUtility can't handle an array.
+            var diffLevels = new List<CustomSongInfo.DifficultyLevel>();
+            var n = JSON.Parse(infoText);
+            var diffs = n["difficultyLevels"];
+            for (int i = 0; i < diffs.AsArray.Count; i++)
+            {
+                n = diffs[i];
+                diffLevels.Add(new CustomSongInfo.DifficultyLevel()
+                {
+                    difficulty = n["difficulty"],
+                    difficultyRank = n["difficultyRank"].AsInt,
+                    audioPath = n["audioPath"],
+                    jsonPath = n["jsonPath"]
+                });
+            }
+            songInfo.difficultyLevels = diffLevels.ToArray();
+            return songInfo;
         }
 
         private void Log(string message)

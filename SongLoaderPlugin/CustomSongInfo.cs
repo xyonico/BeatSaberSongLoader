@@ -44,7 +44,7 @@ namespace SongLoaderPlugin
 				combinedJson += diffLevel.json;
 			}
 
-			var hash = Utils.CreateMD5(combinedJson);
+			var hash = Utils.CreateMD5FromString(combinedJson);
 			levelId = hash + "∎" + string.Join("∎", new[] {songName, songSubName, authorName, beatsPerMinute.ToString()}) + "∎";
 			return levelId;
 		}

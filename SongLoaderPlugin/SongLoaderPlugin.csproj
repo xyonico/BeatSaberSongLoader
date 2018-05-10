@@ -11,6 +11,7 @@
     <AssemblyName>SongLoaderPlugin</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -73,6 +74,7 @@
   <ItemGroup>
     <Compile Include="CustomLevelStaticData.cs" />
     <Compile Include="CustomSongInfo.cs" />
+    <Compile Include="Internals\Unzip.cs" />
     <Compile Include="ReflectionUtil.cs" />
     <Compile Include="SimpleJSON.cs" />
     <Compile Include="SongLoader.cs" />
@@ -85,6 +87,9 @@
       <Project>{e2848bfb-5432-42f4-8ae0-d2ec0cdf2f71}</Project>
       <Name>IllusionPlugin</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
