@@ -13,7 +13,7 @@ namespace SongLoaderPlugin
 
 		public string Version
 		{
-			get { return "0.0.2"; }
+			get { return "0.0.3"; }
 		}
 		
 		public void OnApplicationStart()
@@ -31,10 +31,10 @@ namespace SongLoaderPlugin
 			
 		}
 
-		public void OnLevelWasInitialized(int level)
-		{
+		public void OnLevelWasInitialized(int level) {
 			if (level != SongLoader.MenuIndex) return;
 			SongLoader.OnLoad();
+			SongLoaderUI.OnLoad();
 		}
 
 		public void OnUpdate()
