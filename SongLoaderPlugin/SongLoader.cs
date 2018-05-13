@@ -22,7 +22,7 @@ namespace SongLoaderPlugin
         private LeaderboardScoreUploader _leaderboardScoreUploader;
         private SongSelectionMasterViewController _songSelectionView;
         private DifficultyViewController _difficultyView;
-        
+
         public static void OnLoad()
         {
             if (Instance != null) return;
@@ -37,18 +37,18 @@ namespace SongLoaderPlugin
             RefreshSongs();
             SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
             SceneManagerOnActiveSceneChanged(new Scene(), new Scene());
-            
+
             DontDestroyOnLoad(gameObject);
         }
 
         private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
         {
             StartCoroutine(WaitRemoveScores());
-            
+
             var songListController = Resources.FindObjectsOfTypeAll<SongListViewController>().FirstOrDefault();
             if (songListController == null) return;
             songListController.didSelectSongEvent += OnDidSelectSongEvent;
-            
+
             _songSelectionView = Resources.FindObjectsOfTypeAll<SongSelectionMasterViewController>().FirstOrDefault();
             _difficultyView = Resources.FindObjectsOfTypeAll<DifficultyViewController>().FirstOrDefault();
         }
@@ -82,9 +82,9 @@ namespace SongLoaderPlugin
             Log("Refreshing songs");
             var songs = RetrieveAllSongs();
             songs = songs.OrderBy(x => x.songName).ToList();
-            
+
             var gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
-            
+
             var gameDataModel = PersistentSingleton<GameDataModel>.instance;
             var oldData = gameDataModel.gameStaticData.worldsData[0].levelsData.ToList();
 
@@ -92,10 +92,10 @@ namespace SongLoaderPlugin
             {
                 oldData.RemoveAll(x => x.levelId == customSongInfo.levelId);
             }
-            
+
             CustomLevelStaticDatas.Clear();
             CustomSongInfos.Clear();
-            
+
             foreach (var song in songs)
             {
                 var id = song.GetIdentifier();
@@ -104,8 +104,9 @@ namespace SongLoaderPlugin
                     Log("Duplicate song found at " + song.path);
                     continue;
                 }
+
                 CustomSongInfos.Add(song);
-                
+
                 CustomLevelStaticData newLevel = null;
                 try
                 {
@@ -115,7 +116,7 @@ namespace SongLoaderPlugin
                 {
                     //LevelStaticData.OnEnable throws null reference exception because we don't have time to set _difficultyLevels
                 }
-                
+
                 ReflectionUtil.SetPrivateField(newLevel, "_levelId", id);
                 ReflectionUtil.SetPrivateField(newLevel, "_authorName", song.authorName);
                 ReflectionUtil.SetPrivateField(newLevel, "_songName", song.songName);
@@ -173,16 +174,17 @@ namespace SongLoaderPlugin
                         continue;
                     }
                 }
-                
+
                 if (difficultyLevels.Count == 0) continue;
-                
+
                 ReflectionUtil.SetPrivateField(newLevel, "_difficultyLevels", difficultyLevels.ToArray());
                 newLevel.OnEnable();
                 oldData.Add(newLevel);
                 CustomLevelStaticDatas.Add(newLevel);
             }
-            
-            ReflectionUtil.SetPrivateField(gameDataModel.gameStaticData.worldsData[0], "_levelsData", oldData.ToArray());
+
+            ReflectionUtil.SetPrivateField(gameDataModel.gameStaticData.worldsData[0], "_levelsData",
+                oldData.ToArray());
             SongsLoaded.Invoke();
         }
 
@@ -272,10 +274,10 @@ namespace SongLoaderPlugin
                     Log("Error reading zip " + songZip);
                 }
             }
-            
+
             var songFolders = Directory.GetDirectories(path + "/CustomSongs").ToList();
             var songCaches = Directory.GetDirectories(path + "/CustomSongs/.cache");
-            
+
             foreach (var song in songFolders)
             {
                 var results = Directory.GetFiles(song, "info.json", SearchOption.AllDirectories);
@@ -288,10 +290,12 @@ namespace SongLoaderPlugin
                 foreach (var result in results)
                 {
                     var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
-                    customSongInfos.Add(GetCustomSongInfo(songPath));
+                    var customSongInfo = GetCustomSongInfo(songPath);
+                    if (customSongInfo == null) continue;
+                    customSongInfos.Add(customSongInfo);
                 }
             }
-            
+
             foreach (var song in songCaches)
             {
                 var hash = Path.GetFileName(song);
@@ -319,6 +323,7 @@ namespace SongLoaderPlugin
                 Log("Error parsing song: " + songPath);
                 return null;
             }
+
             songInfo.path = songPath;
 
             //Here comes SimpleJSON to the rescue when JSONUtility can't handle an array.
@@ -336,6 +341,7 @@ namespace SongLoaderPlugin
                     jsonPath = n["jsonPath"]
                 });
             }
+
             songInfo.difficultyLevels = diffLevels.ToArray();
             return songInfo;
         }

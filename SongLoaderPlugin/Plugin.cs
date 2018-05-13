@@ -5,7 +5,7 @@ using UnityEngine;
 namespace SongLoaderPlugin
 {
 	public class Plugin : IPlugin
-	{
+	{	
 		public string Name
 		{
 			get { return "Song Loader Plugin"; }
@@ -13,7 +13,7 @@ namespace SongLoaderPlugin
 
 		public string Version
 		{
-			get { return "0.0.2"; }
+			get { return "v3.1"; }
 		}
 		
 		public void OnApplicationStart()
