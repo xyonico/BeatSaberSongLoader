@@ -1,11 +1,13 @@
 ﻿using System;
 using IllusionPlugin;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SongLoaderPlugin
 {
 	public class Plugin : IPlugin
-	{	
+	{
+
 		public string Name
 		{
 			get { return "Song Loader Plugin"; }
@@ -26,17 +28,6 @@ namespace SongLoaderPlugin
 			PlayerPrefs.DeleteKey("lbPatched");
 		}
 
-		public void OnLevelWasLoaded(int level)
-		{
-			
-		}
-
-		public void OnLevelWasInitialized(int level)
-		{
-			if (level != SongLoader.MenuIndex) return;
-			SongLoader.OnLoad();
-		}
-
 		public void OnUpdate()
 		{
 			
@@ -44,6 +35,19 @@ namespace SongLoaderPlugin
 
 		public void OnFixedUpdate()
 		{
+			
+		}
+
+		public void OnSceneLoaded(Scene scene, LoadSceneMode sceneMode) {
+			if (scene.buildIndex != SongLoader.MenuIndex) return;
+			SongLoader.OnLoad();
+		}
+		
+		public void OnSceneUnloaded(Scene scene) {
+			
+		}
+
+		public void OnActiveSceneChanged(Scene prevScene, Scene nextScene) {
 			
 		}
 	}
