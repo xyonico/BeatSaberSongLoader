@@ -1,10 +1,10 @@
-# BeatSaberSongInjector
-An injector for adding custom songs into Beat Saber.
+# BeatSaberSongLoader
+A plugin for adding custom songs into Beat Saber.
 
 *This mod works on both the Steam and Oculus Store versions.*
 
 ## Installation Instructions
- 1. Download the latest release from here: https://github.com/xyonico/BeatSaberSongInjector/releases
+ 1. Download the latest release from here: https://github.com/xyonico/BeatSaberSongLoader/releases
  2. Extract the .zip file into the `Oculus Apps\Software\hyperbolic-magnetism-beat-saber` for Oculus Home OR `steamapps\common\Beat Saber` for Steam. (The one with Beat Saber.exe)
   
     The Beat Saber folder should look something like this:
@@ -33,7 +33,7 @@ The following files must be placed within their own folder inside the "CustomSon
 			-The name can be whatever you want, make sure its the same as the one found in info.json
 			-Only supported image types are jpg and png
 		2. song.wav / song.ogg
-			-This is your song you would like to inject
+			-This is your song you would like to load
 			-Name must be the same as in info.json
 			-Only supported audio types are wav and ogg
 		3. easy.json / normal.json / hard.json / expert.json
