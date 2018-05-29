@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,7 +13,6 @@ namespace SongLoaderPlugin.Parallel {
     public class AsyncSongLoader : SongLoader {
         private ThreadHandler handler;
 
-        private MainMenuViewController _mainMenuViewController;
         private List<Button> _buttonInstances;
 
         public new static void OnLoad() {
@@ -24,7 +23,6 @@ namespace SongLoaderPlugin.Parallel {
             Instance = this;
 
             handler = gameObject.AddComponent<ThreadHandler>();
-            _mainMenuViewController = Resources.FindObjectsOfTypeAll<MainMenuViewController>().First();
 
             Button[] btns = Resources.FindObjectsOfTypeAll<Button>();
 
@@ -104,9 +102,7 @@ namespace SongLoaderPlugin.Parallel {
                 ReflectionUtil.SetPrivateField(newSceneInfo, "_gameScenesManager", gameScenesManager);
                 ReflectionUtil.SetPrivateField(newSceneInfo, "_sceneName", song.environmentName);
 
-                // Is this a typo?
                 ReflectionUtil.SetPrivateField(newLevel, "_environmetSceneInfo", newSceneInfo);
-                // ReflectionUtil.SetPrivateField(newLevel, "_environmentSceneInfo", newSceneInfo);
 
                 var difficultyLevels = new List<LevelStaticData.DifficultyLevel>();
                 foreach (var diffLevel in song.difficultyLevels) {
@@ -161,7 +157,6 @@ namespace SongLoaderPlugin.Parallel {
 
         private void RetrieveAllSongsAsync(Action<CustomSongInfo> task, ThreadStart onFinished = null) {
             handler.Dispatch(() => {
-                Console.WriteLine(" > Task started");
                 var path = Environment.CurrentDirectory;
                 path = path.Replace('\\', '/');
 
@@ -199,22 +194,7 @@ namespace SongLoaderPlugin.Parallel {
                 var songCaches = Directory.GetDirectories(path + "/CustomSongs/.cache");
 
                 foreach (var song in songFolders) {
-                    var results = Directory.GetFiles(song, "info.json", SearchOption.AllDirectories);
-                    if (results.Length == 0) {
-                        Log("Custom song folder '" + song + "' is missing info.json!");
-                        continue;
-                    }
-
-                    foreach (var result in results) {
-                        var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
-                        var customSongInfo = GetCustomSongInfo(songPath);
-                        if (customSongInfo == null) continue;
-                        handler.Post(() => {
-                            SetButtonText(customSongInfo.songName);
-                            task(customSongInfo);
-                        });
-                        Thread.Sleep(250);
-                    }
+                    LoadSong(song, task);
                 }
 
                 foreach (var song in songCaches) {
@@ -229,6 +209,24 @@ namespace SongLoaderPlugin.Parallel {
                 if(onFinished != null)
                     handler.Post(onFinished);
             });
+        }
+
+        private void LoadSong(string song, Action<CustomSongInfo> task) {
+            var results = Directory.GetFiles(song, "info.json", SearchOption.AllDirectories);
+            if (results.Length == 0) {
+                Log("Custom song folder '" + song + "' is missing info.json!");
+                return;
+            }
+
+            foreach (var result in results) {
+                var songPath = Path.GetDirectoryName(result)?.Replace('\\', '/');
+                var customSongInfo = GetCustomSongInfo(songPath);
+                if (customSongInfo == null) continue;
+                handler.Post(() => {
+                    SetButtonText(customSongInfo.songName);
+                    task(customSongInfo);
+                });
+            }
         }
     }
 }
