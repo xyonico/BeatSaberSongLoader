@@ -23,10 +23,14 @@ namespace SongLoaderPlugin
         private SongSelectionMasterViewController _songSelectionView;
         private DifficultyViewController _difficultyView;
 
-        public static void OnLoad()
-        {
+        public static void OnLoad() {
+            OnLoadImpl<SongLoader>();
+        }
+
+        // CHANGE: Made more generic
+        public static void OnLoadImpl<T>() where T : SongLoader {
             if (Instance != null) return;
-            new GameObject("Song Loader").AddComponent<SongLoader>();
+            new GameObject("Song Loader").AddComponent<T>();
         }
 
         public static SongLoader Instance;
@@ -41,7 +45,7 @@ namespace SongLoaderPlugin
             DontDestroyOnLoad(gameObject);
         }
 
-        private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
+        protected void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
         {
             StartCoroutine(WaitRemoveScores());
 
@@ -76,7 +80,8 @@ namespace SongLoaderPlugin
             }
         }
 
-        public void RefreshSongs()
+        // CHANGE: Made virtual
+        public virtual void RefreshSongs()
         {
             if (SceneManager.GetActiveScene().buildIndex != MenuIndex) return;
             Log("Refreshing songs");
@@ -112,7 +117,7 @@ namespace SongLoaderPlugin
                 {
                     newLevel = ScriptableObject.CreateInstance<CustomLevelStaticData>();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     //LevelStaticData.OnEnable throws null reference exception because we don't have time to set _difficultyLevels
                 }
@@ -212,7 +217,8 @@ namespace SongLoaderPlugin
             scores.RemoveAll(x => scoresToRemove.Contains(x));
         }
 
-        private IEnumerator LoadAudio(string audioPath, object obj, string fieldName)
+        // CHANGE: Made protected
+        protected IEnumerator LoadAudio(string audioPath, object obj, string fieldName)
         {
             using (var www = new WWW(audioPath))
             {
@@ -221,7 +227,8 @@ namespace SongLoaderPlugin
             }
         }
 
-        private IEnumerator LoadSprite(string spritePath, object obj, string fieldName)
+        // CHANGE: Made protected
+        protected IEnumerator LoadSprite(string spritePath, object obj, string fieldName)
         {
             Texture2D tex;
             tex = new Texture2D(256, 256, TextureFormat.DXT1, false);
@@ -310,7 +317,8 @@ namespace SongLoaderPlugin
             return customSongInfos;
         }
 
-        private CustomSongInfo GetCustomSongInfo(string songPath)
+        // CHANGE: Made protected
+        protected CustomSongInfo GetCustomSongInfo(string songPath)
         {
             var infoText = File.ReadAllText(songPath + "/info.json");
             CustomSongInfo songInfo;
@@ -318,7 +326,7 @@ namespace SongLoaderPlugin
             {
                 songInfo = JsonUtility.FromJson<CustomSongInfo>(infoText);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Log("Error parsing song: " + songPath);
                 return null;
@@ -346,7 +354,8 @@ namespace SongLoaderPlugin
             return songInfo;
         }
 
-        private void Log(string message)
+        // CHANGE: Made protected
+        protected void Log(string message)
         {
             Debug.Log("Song Loader: " + message);
             Console.WriteLine("Song Loader: " + message);
