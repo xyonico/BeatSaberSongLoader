@@ -76,7 +76,14 @@ namespace SongLoaderPlugin
             }
         }
 
+        // Parameterless call to not break other mods
         public void RefreshSongs()
+        {
+            RefreshSongs(false);
+        }
+
+        // New Refresh to specify if should reload ALL songs, or just new ones
+        public void RefreshSongs(bool fullRefresh = false)
         {
             if (SceneManager.GetActiveScene().buildIndex != MenuIndex) return;
             Log("Refreshing songs");
@@ -88,13 +95,19 @@ namespace SongLoaderPlugin
             var gameDataModel = PersistentSingleton<GameDataModel>.instance;
             var oldData = gameDataModel.gameStaticData.worldsData[0].levelsData.ToList();
 
-            foreach (var customSongInfo in CustomSongInfos)
+            if (fullRefresh)
             {
-                oldData.RemoveAll(x => x.levelId == customSongInfo.levelId);
+                Log("Unloading old songs.");
+                foreach (var customSongInfo in CustomSongInfos)
+                {
+                    oldData.RemoveAll(x => x.levelId == customSongInfo.levelId);
+                }
+
+                CustomLevelStaticDatas.Clear();
+                CustomSongInfos.Clear();
             }
 
-            CustomLevelStaticDatas.Clear();
-            CustomSongInfos.Clear();
+            Resources.UnloadUnusedAssets();
 
             foreach (var song in songs)
             {
@@ -104,6 +117,13 @@ namespace SongLoaderPlugin
                     Log("Duplicate song found at " + song.path);
                     continue;
                 }
+
+                if (CustomSongInfos.Any(x => x.levelId == song.levelId))
+                {
+                    //Log("Song already loaded: "+ song.songName);
+                    continue;
+                }
+                //Log("New song found: " + song.songName);
 
                 CustomSongInfos.Add(song);
 
@@ -356,7 +376,7 @@ namespace SongLoaderPlugin
         {
             if (Input.GetKeyDown(KeyCode.R))
             {
-                RefreshSongs();
+                RefreshSongs(true);
             }
         }
     }
