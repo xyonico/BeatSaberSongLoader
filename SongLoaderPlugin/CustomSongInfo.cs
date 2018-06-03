@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 namespace SongLoaderPlugin
 {
 	[Serializable]
-	public class CustomSongInfo
+	public class CustomSongInfo : IEquatable<CustomSongInfo>
 	{
 		public string songName;
 		public string songSubName;
@@ -48,5 +48,10 @@ namespace SongLoaderPlugin
 			levelId = hash + "∎" + string.Join("∎", new[] {songName, songSubName, authorName, beatsPerMinute.ToString()}) + "∎";
 			return levelId;
 		}
-	}
+
+        public bool Equals(CustomSongInfo other)
+        {
+            return levelId == other.levelId;
+        }
+    }
 }

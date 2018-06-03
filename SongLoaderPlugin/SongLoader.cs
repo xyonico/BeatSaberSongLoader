@@ -16,6 +16,7 @@ namespace SongLoaderPlugin
         public static readonly UnityEvent SongsLoaded = new UnityEvent();
         public static readonly List<CustomSongInfo> CustomSongInfos = new List<CustomSongInfo>();
         public static readonly List<CustomLevelStaticData> CustomLevelStaticDatas = new List<CustomLevelStaticData>();
+        public static readonly List<LevelStaticData> OriginalLevelStaticDatas = new List<LevelStaticData>();
 
         public const int MenuIndex = 1;
 
@@ -76,9 +77,16 @@ namespace SongLoaderPlugin
             }
         }
 
+        // Parameterless call to not break other mods
         public void RefreshSongs()
         {
-            if (SceneManager.GetActiveScene().buildIndex != MenuIndex) return;
+            StartCoroutine(RefreshSongs(false));
+        }
+
+        // New Refresh to specify if should reload ALL songs, or just new ones
+        private IEnumerator RefreshSongs(bool fullRefresh = false)
+        {
+            if (SceneManager.GetActiveScene().buildIndex != MenuIndex) yield break;
             Log("Refreshing songs");
             var songs = RetrieveAllSongs();
             songs = songs.OrderBy(x => x.songName).ToList();
@@ -86,106 +94,151 @@ namespace SongLoaderPlugin
             var gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
 
             var gameDataModel = PersistentSingleton<GameDataModel>.instance;
-            var oldData = gameDataModel.gameStaticData.worldsData[0].levelsData.ToList();
-
-            foreach (var customSongInfo in CustomSongInfos)
+            if (OriginalLevelStaticDatas.Count == 0)
             {
-                oldData.RemoveAll(x => x.levelId == customSongInfo.levelId);
+                foreach (var level in gameDataModel.gameStaticData.worldsData[0].levelsData.ToList())
+                {
+                    OriginalLevelStaticDatas.Add(level);
+                }
+            }
+            var newLevelData = new List<LevelStaticData>(OriginalLevelStaticDatas);
+
+            if (fullRefresh)
+            {
+                CustomLevelStaticDatas.Clear();
+                CustomSongInfos.Clear();
+            }
+            else
+            {
+                int beforeCount = CustomLevelStaticDatas.Count;
+                CustomSongInfos.RemoveAll(x => !songs.Contains(x));
+                CustomLevelStaticDatas.RemoveAll(x => !songs.Any(y => y.levelId == x.levelId));
+                Log("Removed "+ (beforeCount - CustomLevelStaticDatas.Count) + " deleted songs");
+
+                // Check why info and data are not the same
+                if (CustomSongInfos.Count != CustomLevelStaticDatas.Count)
+                {
+                    foreach (var song in CustomSongInfos)
+                    {
+                        if (!CustomLevelStaticDatas.Any(x => x.levelId == song.levelId))
+                        {
+                            Log("Song at " + song.path + " has some issue");
+                        }
+                    }
+                }
             }
 
-            CustomLevelStaticDatas.Clear();
-            CustomSongInfos.Clear();
+            Resources.UnloadUnusedAssets();
 
             foreach (var song in songs)
             {
-                var id = song.GetIdentifier();
-                if (songs.Any(x => x.levelId == id && x != song))
+                // Add existing copy of song
+                if (CustomSongInfos.Contains(song))
                 {
-                    Log("Duplicate song found at " + song.path);
+                    foreach (var level in CustomLevelStaticDatas)
+                    {
+                        if (level.levelId == song.levelId)
+                        {
+                            //Log("Readded: " + song.songName);
+                            newLevelData.Add(level);
+                            break;
+                        }
+                    }
                     continue;
                 }
 
-                CustomSongInfos.Add(song);
-
-                CustomLevelStaticData newLevel = null;
-                try
+                // Add new songs
+                //Log("New song found: " + song.songName);
+                CustomLevelStaticData newLevel = LoadNewSong(song, gameScenesManager);
+                if (newLevel != null)
                 {
-                    newLevel = ScriptableObject.CreateInstance<CustomLevelStaticData>();
+                    CustomSongInfos.Add(song);
+                    newLevel.OnEnable();
+                    newLevelData.Add(newLevel);
+                    CustomLevelStaticDatas.Add(newLevel);
                 }
-                catch (Exception e)
-                {
-                    //LevelStaticData.OnEnable throws null reference exception because we don't have time to set _difficultyLevels
-                }
-
-                ReflectionUtil.SetPrivateField(newLevel, "_levelId", id);
-                ReflectionUtil.SetPrivateField(newLevel, "_authorName", song.authorName);
-                ReflectionUtil.SetPrivateField(newLevel, "_songName", song.songName);
-                ReflectionUtil.SetPrivateField(newLevel, "_songSubName", song.songSubName);
-                ReflectionUtil.SetPrivateField(newLevel, "_previewStartTime", song.previewStartTime);
-                ReflectionUtil.SetPrivateField(newLevel, "_previewDuration", song.previewDuration);
-                ReflectionUtil.SetPrivateField(newLevel, "_beatsPerMinute", song.beatsPerMinute);
-                StartCoroutine(LoadSprite("file://" + song.path + "/" + song.coverImagePath, newLevel, "_coverImage"));
-
-                var newSceneInfo = ScriptableObject.CreateInstance<SceneInfo>();
-                ReflectionUtil.SetPrivateField(newSceneInfo, "_gameScenesManager", gameScenesManager);
-                ReflectionUtil.SetPrivateField(newSceneInfo, "_sceneName", song.environmentName);
-
-                ReflectionUtil.SetPrivateField(newLevel, "_environmetSceneInfo", newSceneInfo);
-
-                var difficultyLevels = new List<LevelStaticData.DifficultyLevel>();
-                foreach (var diffLevel in song.difficultyLevels)
-                {
-                    var newDiffLevel = new LevelStaticData.DifficultyLevel();
-
-                    try
-                    {
-                        var difficulty = diffLevel.difficulty.ToEnum(LevelStaticData.Difficulty.Normal);
-                        ReflectionUtil.SetPrivateField(newDiffLevel, "_difficulty", difficulty);
-                        ReflectionUtil.SetPrivateField(newDiffLevel, "_difficultyRank", diffLevel.difficultyRank);
-
-                        if (!File.Exists(song.path + "/" + diffLevel.jsonPath))
-                        {
-                            Log("Couldn't find difficulty json " + song.path + "/" + diffLevel.jsonPath);
-                            continue;
-                        }
-
-                        var newSongLevelData = ScriptableObject.CreateInstance<SongLevelData>();
-                        var json = File.ReadAllText(song.path + "/" + diffLevel.jsonPath);
-                        try
-                        {
-                            newSongLevelData.LoadFromJson(json);
-                        }
-                        catch (Exception e)
-                        {
-                            Log("Error while parsing " + song.path + "/" + diffLevel.jsonPath);
-                            Log(e.ToString());
-                            continue;
-                        }
-
-                        ReflectionUtil.SetPrivateField(newDiffLevel, "_songLevelData", newSongLevelData);
-                        StartCoroutine(LoadAudio("file://" + song.path + "/" + diffLevel.audioPath, newDiffLevel,
-                            "_audioClip"));
-                        difficultyLevels.Add(newDiffLevel);
-                    }
-                    catch (Exception e)
-                    {
-                        Log("Error parsing difficulty level in song: " + song.path);
-                        Log(e.Message);
-                        continue;
-                    }
-                }
-
-                if (difficultyLevels.Count == 0) continue;
-
-                ReflectionUtil.SetPrivateField(newLevel, "_difficultyLevels", difficultyLevels.ToArray());
-                newLevel.OnEnable();
-                oldData.Add(newLevel);
-                CustomLevelStaticDatas.Add(newLevel);
+                yield return null;
             }
 
             ReflectionUtil.SetPrivateField(gameDataModel.gameStaticData.worldsData[0], "_levelsData",
-                oldData.ToArray());
+                newLevelData.ToArray());
             SongsLoaded.Invoke();
+        }
+
+        private CustomLevelStaticData LoadNewSong(CustomSongInfo song, GameScenesManager gameScenesManager)
+        {
+            CustomLevelStaticData newLevel = null;
+            try
+            {
+                newLevel = ScriptableObject.CreateInstance<CustomLevelStaticData>();
+            }
+            catch (Exception)
+            {
+                //LevelStaticData.OnEnable throws null reference exception because we don't have time to set _difficultyLevels
+            }
+
+            ReflectionUtil.SetPrivateField(newLevel, "_levelId", song.levelId);
+            ReflectionUtil.SetPrivateField(newLevel, "_authorName", song.authorName);
+            ReflectionUtil.SetPrivateField(newLevel, "_songName", song.songName);
+            ReflectionUtil.SetPrivateField(newLevel, "_songSubName", song.songSubName);
+            ReflectionUtil.SetPrivateField(newLevel, "_previewStartTime", song.previewStartTime);
+            ReflectionUtil.SetPrivateField(newLevel, "_previewDuration", song.previewDuration);
+            ReflectionUtil.SetPrivateField(newLevel, "_beatsPerMinute", song.beatsPerMinute);
+            StartCoroutine(LoadSprite("file://" + song.path + "/" + song.coverImagePath, newLevel, "_coverImage"));
+
+            var newSceneInfo = ScriptableObject.CreateInstance<SceneInfo>();
+            ReflectionUtil.SetPrivateField(newSceneInfo, "_gameScenesManager", gameScenesManager);
+            ReflectionUtil.SetPrivateField(newSceneInfo, "_sceneName", song.environmentName);
+
+            ReflectionUtil.SetPrivateField(newLevel, "_environmetSceneInfo", newSceneInfo);
+
+            var difficultyLevels = new List<LevelStaticData.DifficultyLevel>();
+            foreach (var diffLevel in song.difficultyLevels)
+            {
+                var newDiffLevel = new LevelStaticData.DifficultyLevel();
+
+                try
+                {
+                    var difficulty = diffLevel.difficulty.ToEnum(LevelStaticData.Difficulty.Normal);
+                    ReflectionUtil.SetPrivateField(newDiffLevel, "_difficulty", difficulty);
+                    ReflectionUtil.SetPrivateField(newDiffLevel, "_difficultyRank", diffLevel.difficultyRank);
+
+                    if (!File.Exists(song.path + "/" + diffLevel.jsonPath))
+                    {
+                        Log("Couldn't find difficulty json " + song.path + "/" + diffLevel.jsonPath);
+                        continue;
+                    }
+
+                    var newSongLevelData = ScriptableObject.CreateInstance<SongLevelData>();
+                    var json = File.ReadAllText(song.path + "/" + diffLevel.jsonPath);
+                    try
+                    {
+                        newSongLevelData.LoadFromJson(json);
+                    }
+                    catch (Exception e)
+                    {
+                        Log("Error while parsing " + song.path + "/" + diffLevel.jsonPath);
+                        Log(e.ToString());
+                        continue;
+                    }
+
+                    ReflectionUtil.SetPrivateField(newDiffLevel, "_songLevelData", newSongLevelData);
+                    StartCoroutine(LoadAudio("file://" + song.path + "/" + diffLevel.audioPath, newDiffLevel,
+                        "_audioClip"));
+                    difficultyLevels.Add(newDiffLevel);
+                }
+                catch (Exception e)
+                {
+                    Log("Error parsing difficulty level in song: " + song.path);
+                    Log(e.Message);
+                    continue;
+                }
+            }
+
+            if (difficultyLevels.Count == 0) return null;
+
+            ReflectionUtil.SetPrivateField(newLevel, "_difficultyLevels", difficultyLevels.ToArray());
+            return newLevel;
         }
 
         private void RemoveCustomScores()
@@ -292,6 +345,12 @@ namespace SongLoaderPlugin
                     var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
                     var customSongInfo = GetCustomSongInfo(songPath);
                     if (customSongInfo == null) continue;
+                    if (customSongInfos.Contains(customSongInfo))
+                    {
+                        // Don't add duplicates
+                        Log("Duplicate song found at " + customSongInfo.path);
+                        continue;
+                    }
                     customSongInfos.Add(customSongInfo);
                 }
             }
@@ -318,7 +377,7 @@ namespace SongLoaderPlugin
             {
                 songInfo = JsonUtility.FromJson<CustomSongInfo>(infoText);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Log("Error parsing song: " + songPath);
                 return null;
@@ -343,6 +402,7 @@ namespace SongLoaderPlugin
             }
 
             songInfo.difficultyLevels = diffLevels.ToArray();
+            songInfo.GetIdentifier();
             return songInfo;
         }
 
@@ -356,7 +416,7 @@ namespace SongLoaderPlugin
         {
             if (Input.GetKeyDown(KeyCode.R))
             {
-                RefreshSongs();
+                StartCoroutine(RefreshSongs(true));
             }
         }
     }
