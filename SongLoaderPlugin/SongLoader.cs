@@ -16,6 +16,7 @@ namespace SongLoaderPlugin
         public static readonly UnityEvent SongsLoaded = new UnityEvent();
         public static readonly List<CustomSongInfo> CustomSongInfos = new List<CustomSongInfo>();
         public static readonly List<CustomLevelStaticData> CustomLevelStaticDatas = new List<CustomLevelStaticData>();
+        public static readonly List<LevelStaticData> OriginalLevelStaticDatas = new List<LevelStaticData>();
 
         public const int MenuIndex = 1;
 
@@ -93,36 +94,60 @@ namespace SongLoaderPlugin
             var gameScenesManager = Resources.FindObjectsOfTypeAll<GameScenesManager>().FirstOrDefault();
 
             var gameDataModel = PersistentSingleton<GameDataModel>.instance;
-            var oldData = gameDataModel.gameStaticData.worldsData[0].levelsData.ToList();
+            if (OriginalLevelStaticDatas.Count == 0)
+            {
+                foreach (var level in gameDataModel.gameStaticData.worldsData[0].levelsData.ToList())
+                {
+                    OriginalLevelStaticDatas.Add(level);
+                }
+            }
+            var newLevelData = new List<LevelStaticData>(OriginalLevelStaticDatas);
 
             if (fullRefresh)
             {
-                Log("Unloading old songs.");
-                foreach (var customSongInfo in CustomSongInfos)
-                {
-                    oldData.RemoveAll(x => x.levelId == customSongInfo.levelId);
-                }
-
                 CustomLevelStaticDatas.Clear();
                 CustomSongInfos.Clear();
+            }
+            else
+            {
+                int beforeCount = CustomLevelStaticDatas.Count;
+                CustomSongInfos.RemoveAll(x => !songs.Contains(x));
+                CustomLevelStaticDatas.RemoveAll(x => !songs.Any(y => y.levelId == x.levelId));
+                Log("Removed "+ (beforeCount - CustomLevelStaticDatas.Count) + " deleted songs");
+
+                // Check why info and data are not the same
+                if (CustomSongInfos.Count != CustomLevelStaticDatas.Count)
+                {
+                    foreach (var song in CustomSongInfos)
+                    {
+                        if (!CustomLevelStaticDatas.Any(x => x.levelId == song.levelId))
+                        {
+                            Log("Song at " + song.path + " has some issue");
+                        }
+                    }
+                }
             }
 
             Resources.UnloadUnusedAssets();
 
             foreach (var song in songs)
             {
-                var id = song.GetIdentifier();
-                if (songs.Any(x => x.levelId == id && x != song))
+                // Add existing copy of song
+                if (CustomSongInfos.Contains(song))
                 {
-                    Log("Duplicate song found at " + song.path);
+                    foreach (var level in CustomLevelStaticDatas)
+                    {
+                        if (level.levelId == song.levelId)
+                        {
+                            //Log("Readded: " + song.songName);
+                            newLevelData.Add(level);
+                            break;
+                        }
+                    }
                     continue;
                 }
 
-                if (CustomSongInfos.Any(x => x.levelId == song.levelId))
-                {
-                    //Log("Song already loaded: "+ song.songName);
-                    continue;
-                }
+                // Add new songs
                 //Log("New song found: " + song.songName);
 
                 CustomSongInfos.Add(song);
@@ -132,12 +157,12 @@ namespace SongLoaderPlugin
                 {
                     newLevel = ScriptableObject.CreateInstance<CustomLevelStaticData>();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     //LevelStaticData.OnEnable throws null reference exception because we don't have time to set _difficultyLevels
                 }
 
-                ReflectionUtil.SetPrivateField(newLevel, "_levelId", id);
+                ReflectionUtil.SetPrivateField(newLevel, "_levelId", song.levelId);
                 ReflectionUtil.SetPrivateField(newLevel, "_authorName", song.authorName);
                 ReflectionUtil.SetPrivateField(newLevel, "_songName", song.songName);
                 ReflectionUtil.SetPrivateField(newLevel, "_songSubName", song.songSubName);
@@ -199,12 +224,12 @@ namespace SongLoaderPlugin
 
                 ReflectionUtil.SetPrivateField(newLevel, "_difficultyLevels", difficultyLevels.ToArray());
                 newLevel.OnEnable();
-                oldData.Add(newLevel);
+                newLevelData.Add(newLevel);
                 CustomLevelStaticDatas.Add(newLevel);
             }
 
             ReflectionUtil.SetPrivateField(gameDataModel.gameStaticData.worldsData[0], "_levelsData",
-                oldData.ToArray());
+                newLevelData.ToArray());
             SongsLoaded.Invoke();
         }
 
@@ -312,6 +337,12 @@ namespace SongLoaderPlugin
                     var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
                     var customSongInfo = GetCustomSongInfo(songPath);
                     if (customSongInfo == null) continue;
+                    if (customSongInfos.Contains(customSongInfo))
+                    {
+                        // Don't add duplicates
+                        Log("Duplicate song found at " + customSongInfo.path);
+                        continue;
+                    }
                     customSongInfos.Add(customSongInfo);
                 }
             }
@@ -338,7 +369,7 @@ namespace SongLoaderPlugin
             {
                 songInfo = JsonUtility.FromJson<CustomSongInfo>(infoText);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Log("Error parsing song: " + songPath);
                 return null;
@@ -363,6 +394,7 @@ namespace SongLoaderPlugin
             }
 
             songInfo.difficultyLevels = diffLevels.ToArray();
+            songInfo.GetIdentifier();
             return songInfo;
         }
 
