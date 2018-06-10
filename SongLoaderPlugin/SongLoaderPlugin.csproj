@@ -72,9 +72,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CustomLevelStaticData.cs" />
     <Compile Include="CustomSongInfo.cs" />
     <Compile Include="Internals\Unzip.cs" />
+    <Compile Include="NoteHitVolumeChanger.cs" />
+    <Compile Include="OverrideClasses\CustomLevelCollection.cs" />
+    <Compile Include="OverrideClasses\CustomLevelCollectionStaticData.cs" />
+    <Compile Include="OverrideClasses\CustomLevelStaticData.cs" />
+    <Compile Include="OverrideClasses\CustomSceneInfo.cs" />
     <Compile Include="ReflectionUtil.cs" />
     <Compile Include="SimpleJSON.cs" />
     <Compile Include="SongLoader.cs" />
