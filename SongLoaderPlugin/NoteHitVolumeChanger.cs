@@ -18,8 +18,6 @@ namespace SongLoaderPlugin
 		{
 			hitVolume = Mathf.Clamp01(hitVolume);
 			missVolume = Mathf.Clamp01(missVolume);
-			var stopwatch = new Stopwatch();
-			stopwatch.Start();
 			var pooled = false;
 			if (_noteCutSoundEffect == null)
 			{
@@ -49,13 +47,10 @@ namespace SongLoaderPlugin
 					if (effect.name.Contains("Clone"))
 					{
 						ReflectionUtil.SetPrivateField(effect, "_goodCutVolume", newGoodVolume);
-						ReflectionUtil.SetPrivateField(_noteCutSoundEffect, "_badCutVolume", newBadVolume);
+						ReflectionUtil.SetPrivateField(effect, "_badCutVolume", newBadVolume);
 					}
 				}
 			}
-			
-			stopwatch.Stop();
-			Console.WriteLine("SetVolume took " + stopwatch.ElapsedMilliseconds + " milliseconds");
 		}
 	}
 }
