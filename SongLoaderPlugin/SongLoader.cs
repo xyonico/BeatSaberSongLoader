@@ -261,9 +261,9 @@ namespace SongLoaderPlugin
                 if (Utils.CreateMD5FromFile(songZip, out hash)) {
                     currentHashes.Add(hash);
                     if (cachedSongs.Any(x => x.Contains(hash))) continue;
-                    
-                    //Manual extractions, prevent double folder
-                    using (var zipStream = new FileStream(songZip, FileMode.Open)) { 
+					
+					//Manual extractions, prevent double folder
+					using (var zipStream = new FileStream(songZip, FileMode.Open)) { 
                         using (var archive = new Unzip(zipStream)) {
                             Directory.CreateDirectory(path + "/CustomSongs/.cache/" + hash);
                             foreach (var entry in archive.Entries) {
@@ -283,6 +283,7 @@ namespace SongLoaderPlugin
             }
 
             List<string> songFolders = Directory.GetDirectories(path + "/CustomSongs").ToList();
+			songFolders.Remove(".cache");
             List<string> songCaches = Directory.GetDirectories(path + "/CustomSongs/.cache").ToList();
 
             int index = 0;
@@ -301,18 +302,18 @@ namespace SongLoaderPlugin
                 index += 1;
             }
 
-            foreach (var song in (songFolders.Concat(songCaches))) {
-                var results = Directory.GetFiles(song, "info.json", SearchOption.AllDirectories);
+            foreach (var song in songFolders.Concat(songCaches)) {
+                var results = Directory.GetFiles(song, "info.json");
                 if (results.Length == 0) {
                     Log("Custom song folder '" + song + "' is missing info.json!");
                     continue;
                 }
 
                 foreach (var result in results) {
-                    var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
+					var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
                     var customSongInfo = GetCustomSongInfo(songPath);
                     if (customSongInfo == null) continue;
-                    customSongInfos.Add(customSongInfo);
+					customSongInfos.Add(customSongInfo);
                 }
             }
 
@@ -359,6 +360,12 @@ namespace SongLoaderPlugin
         {
             Debug.Log("Song Loader: " + message);
             Console.WriteLine("Song Loader: " + message);
+
+			if (File.Exists("SongLoaderPlugin.log")) {
+				using (var sw = File.AppendText("SongLoaderPlugin.log")) {
+					sw.WriteLine(message);
+				}
+			}
         }
 
         private void Update()
