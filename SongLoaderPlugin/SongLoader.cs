@@ -261,20 +261,31 @@ namespace SongLoaderPlugin
                 if (Utils.CreateMD5FromFile(songZip, out hash)) {
                     currentHashes.Add(hash);
                     if (cachedSongs.Any(x => x.Contains(hash))) continue;
-					
+
 					//Manual extractions, prevent double folder
-					using (var zipStream = new FileStream(songZip, FileMode.Open)) { 
-                        using (var archive = new Unzip(zipStream)) {
-                            Directory.CreateDirectory(path + "/CustomSongs/.cache/" + hash);
-                            foreach (var entry in archive.Entries) {
-                                string destination = Path.Combine(path + "/CustomSongs/.cache/" + hash, Path.GetFileName(entry.Name));
-                                
-                                FileStream fileStream = File.Create(destination);
-                                archive.Extract(entry.Name, fileStream);
-                                fileStream.Close();
-                            }
-                        }
-                    }
+					try {
+						using (var zipStream = new FileStream(songZip, FileMode.Open)) {
+							using (var archive = new Unzip(zipStream)) {
+								if (!Directory.Exists(path + "/CustomSongs/.cache/" + hash)) {
+									Directory.CreateDirectory(path + "/CustomSongs/.cache/" + hash);
+								}
+								foreach (var entry in archive.Entries) {
+									string filename = Path.GetFileName(entry.Name);
+									if (!String.IsNullOrEmpty(filename)) {
+										string destination = Path.Combine(path + "/CustomSongs/.cache/" + hash, filename);
+										
+										FileStream fileStream = File.Create(destination);
+										archive.Extract(entry.Name, fileStream);
+										fileStream.Close();
+									}
+								}
+							}
+						}
+					} catch (Exception e) {
+						//InvalidDataException can occur
+						Log(e.GetType().Name + " - " + e.Message);
+						//Directory.Delete(destination);
+					}
                 }
                 else
                 {
