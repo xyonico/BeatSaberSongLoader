@@ -258,15 +258,22 @@ namespace SongLoaderPlugin
                 Log("Found zip: " + songZip);
                 //Check cache if zip already is extracted
                 string hash;
-                if (Utils.CreateMD5FromFile(songZip, out hash))
-                {
+                if (Utils.CreateMD5FromFile(songZip, out hash)) {
                     currentHashes.Add(hash);
                     if (cachedSongs.Any(x => x.Contains(hash))) continue;
-
-                    using (var unzip = new Unzip(songZip))
-                    {
-                        unzip.ExtractToDirectory(path + "/CustomSongs/.cache/" + hash);
-                        Log("Extracted to " + path + "/CustomSongs/.cache/" + hash);
+                    
+                    //Manual extractions, prevent double folder
+                    using (var zipStream = new FileStream(songZip, FileMode.Open)) { 
+                        using (var archive = new Unzip(zipStream)) {
+                            Directory.CreateDirectory(path + "/CustomSongs/.cache/" + hash);
+                            foreach (var entry in archive.Entries) {
+                                string destination = Path.Combine(path + "/CustomSongs/.cache/" + hash, Path.GetFileName(entry.Name));
+                                
+                                FileStream fileStream = File.Create(destination);
+                                archive.Extract(entry.Name, fileStream);
+                                fileStream.Close();
+                            }
+                        }
                     }
                 }
                 else
@@ -275,35 +282,37 @@ namespace SongLoaderPlugin
                 }
             }
 
-            var songFolders = Directory.GetDirectories(path + "/CustomSongs").ToList();
-            var songCaches = Directory.GetDirectories(path + "/CustomSongs/.cache");
+            List<string> songFolders = Directory.GetDirectories(path + "/CustomSongs").ToList();
+            List<string> songCaches = Directory.GetDirectories(path + "/CustomSongs/.cache").ToList();
 
-            foreach (var song in songFolders)
-            {
+            int index = 0;
+            while (index < songCaches.Count) {
+                var song = songCaches[index];
+
+                var hash = Path.GetFileName(song);
+                if (!currentHashes.Contains(hash)) {
+                    //Old cache
+                    Log("Deleting old cache: " + song);
+                    Directory.Delete(song, true);
+
+                    songCaches.RemoveAt(index);
+                }
+
+                index += 1;
+            }
+
+            foreach (var song in (songFolders.Concat(songCaches))) {
                 var results = Directory.GetFiles(song, "info.json", SearchOption.AllDirectories);
-                if (results.Length == 0)
-                {
+                if (results.Length == 0) {
                     Log("Custom song folder '" + song + "' is missing info.json!");
                     continue;
                 }
 
-                foreach (var result in results)
-                {
+                foreach (var result in results) {
                     var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
                     var customSongInfo = GetCustomSongInfo(songPath);
                     if (customSongInfo == null) continue;
                     customSongInfos.Add(customSongInfo);
-                }
-            }
-
-            foreach (var song in songCaches)
-            {
-                var hash = Path.GetFileName(song);
-                if (!currentHashes.Contains(hash))
-                {
-                    //Old cache
-                    Log("Deleting old cache: " + song);
-                    Directory.Delete(song, true);
                 }
             }
 
