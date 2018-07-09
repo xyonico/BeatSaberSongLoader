@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Linq;
 using System;
 using System.Collections;
@@ -212,14 +212,17 @@ namespace SongLoaderPlugin
             scores.RemoveAll(x => scoresToRemove.Contains(x));
         }
 
-        private IEnumerator LoadAudio(string audioPath, object obj, string fieldName)
-        {
-            using (var www = new WWW(audioPath))
-            {
-                yield return www;
-                ReflectionUtil.SetPrivateField(obj, fieldName, www.GetAudioClip(true, true, AudioType.UNKNOWN));
-            }
-        }
+		private IEnumerator LoadAudio(string audioPath, object obj, string fieldName) {
+			Uri path = new Uri(audioPath);
+			using (var www = new WWW(path.AbsoluteUri)) {
+				yield return www;
+				if (String.IsNullOrEmpty(www.error)) {
+					ReflectionUtil.SetPrivateField(obj, fieldName, www.GetAudioClip(true, true, AudioType.UNKNOWN));
+				} else {
+					Log("WWW Error (" + audioPath + "): " + www.error);
+				}
+			}
+		}
 
         private IEnumerator LoadSprite(string spritePath, object obj, string fieldName)
         {
