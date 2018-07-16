@@ -3,12 +3,15 @@ using System.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using SimpleJSON;
 using SongLoaderPlugin.Internals;
 using SongLoaderPlugin.OverrideClasses;
 using UnityEngine.Events;
+using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
+using Debug = UnityEngine.Debug;
 
 namespace SongLoaderPlugin
 {
@@ -16,7 +19,7 @@ namespace SongLoaderPlugin
 	{
 		public static readonly UnityEvent SongsLoaded = new UnityEvent();
 		public static readonly List<CustomSongInfo> CustomSongInfos = new List<CustomSongInfo>();
-		public static readonly List<CustomLevelStaticData> CustomLevelStaticDatas = new List<CustomLevelStaticData>();
+		public static readonly List<CustomLevel> CustomLevels = new List<CustomLevel>();
 
 		public const int MenuIndex = 1;
 		
@@ -51,9 +54,9 @@ namespace SongLoaderPlugin
 			if (scene.buildIndex == 1)
 			{
 				if (!NoteHitVolumeChanger.PrefabFound) return;
-				var songDetailController = Resources.FindObjectsOfTypeAll<SongDetailViewController>().FirstOrDefault();
+				var songDetailController = Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().FirstOrDefault();
 				if (songDetailController == null) return;
-				songDetailController.didPressPlayButtonEvent += SongDetailControllerOnDidPressPlayButtonEvent;
+				songDetailController.didPressPlayButtonEvent += StandardLevelDetailControllerOnDidPressPlayButtonEvent;
 			}
 			else if (scene.buildIndex == 4)
 			{
@@ -61,9 +64,8 @@ namespace SongLoaderPlugin
 				var mainGameData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
 				if (mainGameData == null) return;
 				var level = mainGameData.difficultyLevel.level;
-				var song = CustomSongInfos.FirstOrDefault(x => x.levelId == level.levelId);
+				var song = CustomSongInfos.FirstOrDefault(x => x.levelId == level.levelID);
 				if (song == null) return;
-				Console.WriteLine("Song " + song.songName + " is selected. Setting volume to " + song.noteHitVolume);
 				NoteHitVolumeChanger.SetVolume(song.noteHitVolume, song.noteMissVolume);
 			}
 		}
@@ -74,10 +76,10 @@ namespace SongLoaderPlugin
 			RemoveCustomScores();
 		}
 
-		private void SongDetailControllerOnDidPressPlayButtonEvent(SongDetailViewController songDetailViewController)
+		private void StandardLevelDetailControllerOnDidPressPlayButtonEvent(StandardLevelDetailViewController songDetailViewController)
 		{
 			var level = songDetailViewController.difficultyLevel.level;
-			var song = CustomSongInfos.FirstOrDefault(x => x.levelId == level.levelId);
+			var song = CustomSongInfos.FirstOrDefault(x => x.levelId == level.levelID);
 			if (song == null) return;
 			Console.WriteLine("Song " + song.songName + " is selected. Setting volume to " + song.noteHitVolume);
 			NoteHitVolumeChanger.SetVolume(song.noteHitVolume, song.noteMissVolume);
@@ -86,7 +88,7 @@ namespace SongLoaderPlugin
 		public void RefreshSongs()
 		{
 			if (SceneManager.GetActiveScene().buildIndex != MenuIndex) return;
-			Log("Refreshing songs");
+			Log("Refreshing songs :)");
 			var songs = RetrieveAllSongs();
 			songs = songs.OrderBy(x => x.songName).ToList();
 
@@ -97,15 +99,18 @@ namespace SongLoaderPlugin
 
 			foreach (var customSongInfo in CustomSongInfos)
 			{
-				prevSoloLevels.RemoveAll(x => x.levelId == customSongInfo.levelId);
-				prevOneSaberLevels.RemoveAll(x => x.levelId == customSongInfo.levelId);
+				prevSoloLevels.RemoveAll(x => x.levelID == customSongInfo.levelId);
+				prevOneSaberLevels.RemoveAll(x => x.levelID == customSongInfo.levelId);
 			}
 
-			CustomLevelStaticDatas.Clear();
+			CustomLevels.Clear();
 			CustomSongInfos.Clear();
 
+			var i = 0;
 			foreach (var song in songs)
 			{
+				i++;
+				
 				var id = song.GetIdentifier();
 				if (songs.Any(x => x.levelId == id && x != song))
 				{
@@ -115,43 +120,36 @@ namespace SongLoaderPlugin
 
 				CustomSongInfos.Add(song);
 
-				var newLevel = ScriptableObject.CreateInstance<CustomLevelStaticData>();
+				var newLevel = ScriptableObject.CreateInstance<CustomLevel>();
+				newLevel.Init(song);
 
-				StartCoroutine(LoadAudio("file://" + song.path + "/" + song.GetAudioPath(), newLevel, "_audioClip"));
-				StartCoroutine(LoadSprite("file://" + song.path + "/" + song.coverImagePath, newLevel, "_coverImage"));
+				Stopwatch sendStopwatch = null;
+
+				StartCoroutine(LoadAudio("file:///" + song.path + "/" + song.GetAudioPath(), newLevel));
+				StartCoroutine(LoadSprite("file:///" + song.path + "/" + song.coverImagePath, newLevel));
 
 				var newSceneInfo = ScriptableObject.CreateInstance<CustomSceneInfo>();
 				newSceneInfo.Init(gameScenesManager, song.environmentName);
 
-				var difficultyLevels = new List<LevelStaticData.DifficultyLevel>();
-				foreach (var diffLevel in song.difficultyLevels)
+				var difficultyBeatmaps = new List<StandardLevelSO.DifficultyBeatmap>();
+				foreach (var diffBeatmap in song.difficultyLevels)
 				{
 					try
 					{
-						var difficulty = diffLevel.difficulty.ToEnum(LevelDifficulty.Normal);
+						var difficulty = diffBeatmap.difficulty.ToEnum(LevelDifficulty.Normal);
 
-						if (!File.Exists(song.path + "/" + diffLevel.jsonPath))
+						if (!File.Exists(song.path + "/" + diffBeatmap.jsonPath))
 						{
-							Log("Couldn't find difficulty json " + song.path + "/" + diffLevel.jsonPath);
+							Log("Couldn't find difficulty json " + song.path + "/" + diffBeatmap.jsonPath);
 							continue;
 						}
 
-						var newSongLevelData = ScriptableObject.CreateInstance<SongLevelData>();
-						var json = File.ReadAllText(song.path + "/" + diffLevel.jsonPath);
-						try
-						{
-							newSongLevelData.LoadFromJson(json);
-						}
-						catch (Exception e)
-						{
-							Log("Error while parsing " + song.path + "/" + diffLevel.jsonPath);
-							Log(e.ToString());
-							continue;
-						}
-
-						var newDiffLevel = new LevelStaticData.DifficultyLevel(newLevel, difficulty,
-							diffLevel.difficultyRank, newSongLevelData);
-						difficultyLevels.Add(newDiffLevel);
+						var newBeatmapData = ScriptableObject.CreateInstance<BeatmapDataSO>();
+						newBeatmapData.SetJsonData(diffBeatmap.json);
+						
+						var newDiffBeatmap = new StandardLevelSO.DifficultyBeatmap(newLevel, difficulty,
+							diffBeatmap.difficultyRank, newBeatmapData);
+						difficultyBeatmaps.Add(newDiffBeatmap);
 					}
 					catch (Exception e)
 					{
@@ -160,21 +158,21 @@ namespace SongLoaderPlugin
 					}
 				}
 
-				if (difficultyLevels.Count == 0) continue;
-
-				newLevel.Init(id, song.songName, song.songSubName, song.authorName, song.beatsPerMinute,
-					song.previewStartTime, song.previewDuration, newSceneInfo, difficultyLevels.ToArray());
-				newLevel.OnEnable();
-				if (song.gamemodeType == 0)
-				{
-					prevSoloLevels.Add(newLevel);
-				}
-				else if (song.gamemodeType == 1)
+				if (difficultyBeatmaps.Count == 0) continue;
+				
+				newLevel.SetDifficultyBeatmaps(difficultyBeatmaps.ToArray());
+				newLevel.InitData();
+				
+				if (song.oneSaber)
 				{
 					prevOneSaberLevels.Add(newLevel);
 				}
+				else
+				{
+					prevSoloLevels.Add(newLevel);
+				}
 
-				CustomLevelStaticDatas.Add(newLevel);
+				CustomLevels.Add(newLevel);
 			}
 
 			var prevCollections =
@@ -222,7 +220,7 @@ namespace SongLoaderPlugin
 			scores.RemoveAll(x => scoresToRemove.Contains(x));
 		}
 
-		private IEnumerator LoadAudio(string audioPath, object obj, string fieldName)
+		private IEnumerator LoadAudio(string audioPath, CustomLevel customLevel)
 		{
 			AudioClip audioClip;
 			if (!LoadedAudioClips.ContainsKey(audioPath))
@@ -239,19 +237,18 @@ namespace SongLoaderPlugin
 				audioClip = LoadedAudioClips[audioPath];
 			}
 
-			ReflectionUtil.SetPrivateField(obj, fieldName, audioClip);
+			customLevel.SetAudioClip(audioClip);
 		}
 
-		private IEnumerator LoadSprite(string spritePath, object obj, string fieldName)
+		private IEnumerator LoadSprite(string spritePath, CustomLevel customLevel)
 		{
 			Sprite sprite;
 			if (!LoadedSprites.ContainsKey(spritePath))
 			{
-				var tex = new Texture2D(256, 256, TextureFormat.DXT1, false);
 				using (var www = new WWW(spritePath))
 				{
 					yield return www;
-					www.LoadImageIntoTexture(tex);
+					var tex = www.textureNonReadable;
 					sprite = Sprite.Create(tex, new Rect(0, 0, 256, 256), Vector2.one * 0.5f, 100, 1);
 					LoadedSprites.Add(spritePath, sprite);
 				}
@@ -261,7 +258,7 @@ namespace SongLoaderPlugin
 				sprite = LoadedSprites[spritePath];
 			}
 
-			ReflectionUtil.SetPrivateField(obj, fieldName, sprite);
+			customLevel.SetCoverImage(sprite);
 		}
 
 		private List<CustomSongInfo> RetrieveAllSongs()
@@ -348,7 +345,7 @@ namespace SongLoaderPlugin
 			{
 				songInfo = JsonUtility.FromJson<CustomSongInfo>(infoText);
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				Log("Error parsing song: " + songPath);
 				return null;

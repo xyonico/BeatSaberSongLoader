@@ -8,15 +8,19 @@ namespace SongLoaderPlugin
 	{
 		public string songName = "Missing name";
 		public string songSubName = string.Empty;
+		[Obsolete("This has been renamed to songAuthorName to match game implementation")]
 		public string authorName = string.Empty;
+		public string songAuthorName;
 		public float beatsPerMinute = 100;
 		public float previewStartTime = 12;
 		public float previewDuration = 10;
+		public float songTimeOffset;
+		public float shuffle;
+		public float shufflePeriod;
 		public string environmentName = "DefaultEnvironment";
-		public string coverImagePath = "cover.jpg";
 		public string audioPath;
-		public string videoPath;
-		public int gamemodeType = 0;
+		public string coverImagePath = "cover.jpg";
+		public bool oneSaber;
 		public float noteHitVolume = 1;
 		public float noteMissVolume = 1;
 		public DifficultyLevel[] difficultyLevels;
@@ -50,10 +54,20 @@ namespace SongLoaderPlugin
 			}
 
 			var hash = Utils.CreateMD5FromString(combinedJson);
-			levelId = hash + "∎" + string.Join("∎", new[] {songName, songSubName, authorName, beatsPerMinute.ToString()}) + "∎";
+			levelId = hash + "∎" + string.Join("∎", songName, songSubName, GetSongAuthor(), beatsPerMinute.ToString()) + "∎";
 			return levelId;
 		}
 
+		public string GetSongAuthor()
+		{
+			if (songAuthorName == null)
+			{
+				songAuthorName = authorName;
+			}
+
+			return songAuthorName;
+		}
+		
 		public string GetAudioPath()
 		{
 			if (!string.IsNullOrEmpty(audioPath)) return audioPath;

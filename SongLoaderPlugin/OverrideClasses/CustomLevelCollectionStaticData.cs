@@ -2,11 +2,11 @@
 
 namespace SongLoaderPlugin.OverrideClasses
 {
-	public class CustomLevelCollectionStaticData : LevelCollectionStaticData
+	public class CustomLevelCollectionStaticData : StandardLevelCollectionSO
 	{
-		public void Init(LevelStaticData[] newLevelsData)
+		public void Init(StandardLevelSO[] newLevels)
 		{
-			_levelsData = newLevelsData;
+			_levels = newLevels;
 		}
 	}
 }
