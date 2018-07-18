@@ -22,22 +22,23 @@ namespace SongLoaderPlugin
 			if (_noteCutSoundEffect == null)
 			{
 				var noteCutSoundEffectManager = Resources.FindObjectsOfTypeAll<NoteCutSoundEffectManager>().FirstOrDefault();
+				if (noteCutSoundEffectManager == null) return;
 				_noteCutSoundEffect =
-					ReflectionUtil.GetPrivateField<NoteCutSoundEffect>(noteCutSoundEffectManager, "_noteCutSoundEffectPrefab");
+					noteCutSoundEffectManager.GetPrivateField<NoteCutSoundEffect>("_noteCutSoundEffectPrefab");
 				pooled = true;
 				PrefabFound = true;
 			}
 
 			if (_normalVolume == 0)
 			{
-				_normalVolume = ReflectionUtil.GetPrivateField<float>(_noteCutSoundEffect, "_goodCutVolume");
-				_normalMissVolume = ReflectionUtil.GetPrivateField<float>(_noteCutSoundEffect, "_badCutVolume");
+				_normalVolume = _noteCutSoundEffect.GetPrivateField<float>("_goodCutVolume");
+				_normalMissVolume = _noteCutSoundEffect.GetPrivateField<float>("_badCutVolume");
 			}
 
 			var newGoodVolume = _normalVolume * hitVolume;
 			var newBadVolume = _normalMissVolume * missVolume;
-			ReflectionUtil.SetPrivateField(_noteCutSoundEffect, "_goodCutVolume", newGoodVolume);
-			ReflectionUtil.SetPrivateField(_noteCutSoundEffect, "_badCutVolume", newBadVolume);
+			_noteCutSoundEffect.SetPrivateField("_goodCutVolume", newGoodVolume);
+			_noteCutSoundEffect.SetPrivateField("_badCutVolume", newBadVolume);
 
 			if (pooled)
 			{
@@ -46,8 +47,8 @@ namespace SongLoaderPlugin
 				{
 					if (effect.name.Contains("Clone"))
 					{
-						ReflectionUtil.SetPrivateField(effect, "_goodCutVolume", newGoodVolume);
-						ReflectionUtil.SetPrivateField(effect, "_badCutVolume", newBadVolume);
+						effect.SetPrivateField("_goodCutVolume", newGoodVolume);
+						effect.SetPrivateField("_badCutVolume", newBadVolume);
 					}
 				}
 			}

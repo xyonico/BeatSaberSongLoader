@@ -1,5 +1,4 @@
-﻿using System;
-using IllusionPlugin;
+﻿using IllusionPlugin;
 using UnityEngine;
 
 namespace SongLoaderPlugin

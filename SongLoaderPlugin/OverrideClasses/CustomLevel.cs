@@ -1,11 +1,15 @@
 ﻿using UnityEngine;
 
-namespace SongLoaderPlugin
+namespace SongLoaderPlugin.OverrideClasses
 {
 	public class CustomLevel : StandardLevelSO
 	{	
-		public void Init(CustomSongInfo customSongInfo)
+		public CustomSongInfo customSongInfo { get; private set; }
+		public bool AudioClipLoading { get; set; }
+		
+		public void Init(CustomSongInfo newCustomSongInfo)
 		{
+			customSongInfo = newCustomSongInfo;
 			_levelID = customSongInfo.GetIdentifier();
 			_songName = customSongInfo.songName;
 			_songSubName = customSongInfo.songSubName;
@@ -36,7 +40,20 @@ namespace SongLoaderPlugin
 		
 		private static SceneInfo LoadSceneInfo(string environmentName)
 		{
-			return Resources.Load<SceneInfo>("SceneInfo/" + environmentName + "SceneInfo");
+			var sceneInfo = Resources.Load<SceneInfo>("SceneInfo/" + environmentName + "SceneInfo");
+			return sceneInfo == null ? Resources.Load<SceneInfo>("SceneInfo/DefaultEnvironmentSceneInfo") : sceneInfo;
+		}
+		
+		public class CustomDifficultyBeatmap : DifficultyBeatmap
+		{
+			public CustomDifficultyBeatmap(IStandardLevel parentLevel, LevelDifficulty difficulty, int difficultyRank, BeatmapDataSO beatmapData) : base(parentLevel, difficulty, difficultyRank, beatmapData)
+			{
+			}
+
+			public BeatmapDataSO BeatmapDataSO
+			{
+				get { return _beatmapData; }
+			}
 		}
 	}
 }
