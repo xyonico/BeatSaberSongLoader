@@ -569,10 +569,13 @@ namespace SongLoaderPlugin
 			for (int i = 0; i < diffs.AsArray.Count; i++)
 			{
 				n = diffs[i];
+				var difficulty = Utils.ToEnum(n["difficulty"], LevelDifficulty.Normal);
+				var difficultyRank = (int)difficulty;
+				
 				diffLevels.Add(new CustomSongInfo.DifficultyLevel
 				{
 					difficulty = n["difficulty"],
-					difficultyRank = n["difficultyRank"].AsInt,
+					difficultyRank = difficultyRank,
 					audioPath = n["audioPath"],
 					jsonPath = n["jsonPath"]
 				});
