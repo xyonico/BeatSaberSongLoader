@@ -19,6 +19,7 @@ namespace SongLoaderPlugin
 		public static event Action<SongLoader, List<CustomLevel>> SongsLoadedEvent;
 		public static List<CustomLevel> CustomLevels = new List<CustomLevel>();
 		public static bool AreSongsLoaded { get; private set; }
+		public static bool AreSongsLoading { get; private set; }
 		public static float LoadingProgress { get; private set; }
 
 		public const int MenuIndex = 1;
@@ -39,6 +40,11 @@ namespace SongLoaderPlugin
 		private readonly ScriptableObjectPool<CustomLevel> _customLevelPool = new ScriptableObjectPool<CustomLevel>();
 		private readonly ScriptableObjectPool<BeatmapDataSO> _beatmapDataPool = new ScriptableObjectPool<BeatmapDataSO>();
 
+		private ProgressBar _progressBar;
+
+		private HMTask _loadingTask;
+		private bool _loadingCancelled;
+
 		private readonly AudioClip _temporaryAudioClip = AudioClip.Create("temp", 1, 2, 1000, true);
 		
 		public static void OnLoad()
@@ -55,7 +61,7 @@ namespace SongLoaderPlugin
 			CreateCustomLevelCollections();
 			SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
 			SceneManagerOnActiveSceneChanged(new Scene(), SceneManager.GetActiveScene());
-			ProgressBar.Create();
+			_progressBar = ProgressBar.Create();
 			
 			RefreshSongs();
 
@@ -64,10 +70,26 @@ namespace SongLoaderPlugin
 
 		private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
 		{
+			if (AreSongsLoading)
+			{
+				//Scene changing while songs are loading. Since we are using a separate thread while loading, this is bad and could cause a crash.
+				//So we have to stop loading.
+				if (_loadingTask != null)
+				{
+					_loadingTask.Cancel();
+					_loadingCancelled = true;
+					AreSongsLoading = false;
+					LoadingProgress = 0;
+					StopAllCoroutines();
+					_progressBar.ShowMessage("Loading cancelled\n<size=80%>Press Ctrl+R to refresh</size>");
+					Log("Loading was cancelled by player since they loaded another scene.");
+				}
+			}
+			
 			StartCoroutine(WaitRemoveScores());
 
 			if (scene.buildIndex == 1)
-			{	
+			{
 				_mainFlowCoordinator = Resources.FindObjectsOfTypeAll<MainFlowCoordinator>().FirstOrDefault();
 				_mainFlowCoordinator.SetPrivateField("_levelCollectionsForGameplayModes", _customLevelCollectionsForGameplayModes);
 				
@@ -161,11 +183,21 @@ namespace SongLoaderPlugin
 			if (SceneManager.GetActiveScene().buildIndex != MenuIndex) return;
 			Log(fullRefresh ? "Starting full song refresh" : "Starting song refresh");
 			AreSongsLoaded = false;
+			AreSongsLoading = true;
 			LoadingProgress = 0;
-			
+			_loadingCancelled = false;
+
 			if (LoadingStartedEvent != null)
 			{
-				LoadingStartedEvent(this);
+				try
+				{
+					LoadingStartedEvent(this);
+				}
+				catch (Exception e)
+				{
+					Log("Some plugin is throwing exception from the LoadingStartedEvent!");
+					Log(e.ToString());
+				}
 			}
 
 			foreach (var customLevel in CustomLevels)
@@ -176,7 +208,6 @@ namespace SongLoaderPlugin
 				_partyLevelCollection.LevelList.Remove(customLevel);
 			}
 
-			
 			RetrieveAllSongs(fullRefresh);
 		}
 
@@ -399,6 +430,7 @@ namespace SongLoaderPlugin
 							var i1 = i;
 							HMMainThreadDispatcher.instance.Enqueue(delegate
 							{
+								if (_loadingCancelled) return;
 								LoadSong(customSongInfo, levelList);
 								LoadingProgress = i1 / songFolders.Count;
 							});
@@ -449,16 +481,19 @@ namespace SongLoaderPlugin
 				}
 
 				AreSongsLoaded = true;
+				AreSongsLoading = false;
 				LoadingProgress = 1;
 
+				_loadingTask = null;
+				
 				if (SongsLoadedEvent != null)
 				{
 					SongsLoadedEvent(this, CustomLevels);
 				}
 			};
 			
-			var task = new HMTask(job, finish);
-			task.Run();
+			_loadingTask = new HMTask(job, finish);
+			_loadingTask.Run();
 		}
 
 		private void LoadSong(CustomSongInfo song, List<CustomLevel> levelList)
