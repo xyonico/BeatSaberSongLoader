@@ -44,6 +44,7 @@ namespace SongLoaderPlugin
 			var combinedJson = "";
 			foreach (var diffLevel in difficultyLevels)
 			{
+                diffLevel.difficultyRank = (int)Enum.Parse(typeof(LevelStaticData.Difficulty), diffLevel.difficulty);
 				if (!File.Exists(path + "/" + diffLevel.jsonPath))
 				{
 					continue;
