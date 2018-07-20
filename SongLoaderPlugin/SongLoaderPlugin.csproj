@@ -93,7 +93,9 @@
   <ItemGroup>
     <Compile Include="CustomSongInfo.cs" />
     <Compile Include="Internals\Unzip.cs" />
+    <Compile Include="IScriptableObjectResetable.cs" />
     <Compile Include="NoteHitVolumeChanger.cs" />
+    <Compile Include="OverrideClasses\CustomBeatmapDataSO.cs" />
     <Compile Include="OverrideClasses\CustomLevel.cs" />
     <Compile Include="OverrideClasses\CustomLevelCollectionForGameplayMode.cs" />
     <Compile Include="OverrideClasses\CustomLevelCollectionsForGameplayModes.cs" />

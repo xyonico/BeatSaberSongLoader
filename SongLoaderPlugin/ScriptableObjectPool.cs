@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace SongLoaderPlugin
 {
-	public class ScriptableObjectPool<T> where T : ScriptableObject
+	public class ScriptableObjectPool<T> where T : ScriptableObject, IScriptableObjectResetable
 	{
 		private readonly List<T> _pool = new List<T>();
 		private readonly List<T> _createdObj = new List<T>();
@@ -25,12 +25,14 @@ namespace SongLoaderPlugin
 
 		public void Return(T obj)
 		{
+			obj.Reset();
 			_pool.Add(obj);
 		}
 
 		public void ReturnAll()
 		{
 			_pool.Clear();
+			_createdObj.ForEach(x => x.Reset());
 			_pool.AddRange(_createdObj);
 		}
 	}

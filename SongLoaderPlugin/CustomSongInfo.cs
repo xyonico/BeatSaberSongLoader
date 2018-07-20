@@ -37,6 +37,7 @@ namespace SongLoaderPlugin
 			public string audioPath;
 			public string jsonPath;
 			public string json;
+			public float noteJumpMovementSpeed;
 		}
 
 		public string GetIdentifier()

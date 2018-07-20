@@ -38,14 +38,14 @@ namespace SongLoaderPlugin
 		private CustomLevelCollectionSO _partyLevelCollection;
 		
 		private readonly ScriptableObjectPool<CustomLevel> _customLevelPool = new ScriptableObjectPool<CustomLevel>();
-		private readonly ScriptableObjectPool<BeatmapDataSO> _beatmapDataPool = new ScriptableObjectPool<BeatmapDataSO>();
+		private readonly ScriptableObjectPool<CustomBeatmapDataSO> _beatmapDataPool = new ScriptableObjectPool<CustomBeatmapDataSO>();
 
 		private ProgressBar _progressBar;
 
 		private HMTask _loadingTask;
 		private bool _loadingCancelled;
 
-		private readonly AudioClip _temporaryAudioClip = AudioClip.Create("temp", 1, 2, 1000, true);
+		public static readonly AudioClip TemporaryAudioClip = AudioClip.Create("temp", 1, 2, 1000, true);
 		
 		public static void OnLoad()
 		{
@@ -119,7 +119,7 @@ namespace SongLoaderPlugin
 			var customLevel = level as CustomLevel;
 			if (customLevel == null) return;
 
-			if (customLevel.audioClip.name != "temp" || customLevel.AudioClipLoading) return;
+			if (customLevel.audioClip != TemporaryAudioClip || customLevel.AudioClipLoading) return;
 
 			var levels = arg1.GetPrivateField<IStandardLevel[]>("_levels").ToList();
 			
@@ -129,6 +129,7 @@ namespace SongLoaderPlugin
 				arg1.HandleLevelSelectionDidChange(levels.IndexOf(customLevel), true);
 			};
 
+			customLevel.FixBPMAndGetNoteJumpMovementSpeed();
 			StartCoroutine(LoadAudio(
 				"file:///" + customLevel.customSongInfo.path + "/" + customLevel.customSongInfo.GetAudioPath(), customLevel,
 				callback));
@@ -138,6 +139,7 @@ namespace SongLoaderPlugin
 		{
 			Action callback = delegate { clipReadyCallback(customLevel); };
 			
+			customLevel.FixBPMAndGetNoteJumpMovementSpeed();
 			StartCoroutine(LoadAudio(
 				"file:///" + customLevel.customSongInfo.path + "/" + customLevel.customSongInfo.GetAudioPath(), customLevel,
 				callback));
@@ -511,7 +513,7 @@ namespace SongLoaderPlugin
 			{
 				var newLevel = _customLevelPool.Get();
 				newLevel.Init(song);
-				newLevel.SetAudioClip(_temporaryAudioClip);
+				newLevel.SetAudioClip(TemporaryAudioClip);
 
 				var difficultyBeatmaps = new List<StandardLevelSO.DifficultyBeatmap>();
 				foreach (var diffBeatmap in song.difficultyLevels)
@@ -530,7 +532,7 @@ namespace SongLoaderPlugin
 						newBeatmapData.SetJsonData(diffBeatmap.json);
 
 						var newDiffBeatmap = new CustomLevel.CustomDifficultyBeatmap(newLevel, difficulty,
-							diffBeatmap.difficultyRank, newBeatmapData);
+							diffBeatmap.difficultyRank, diffBeatmap.noteJumpMovementSpeed, newBeatmapData);
 						difficultyBeatmaps.Add(newDiffBeatmap);
 					}
 					catch (Exception e)
@@ -586,7 +588,8 @@ namespace SongLoaderPlugin
 					difficulty = n["difficulty"],
 					difficultyRank = difficultyRank,
 					audioPath = n["audioPath"],
-					jsonPath = n["jsonPath"]
+					jsonPath = n["jsonPath"],
+					noteJumpMovementSpeed = n["noteJumpMovementSpeed"]
 				});
 			}
 
