@@ -134,6 +134,15 @@ namespace SongLoaderPlugin
 				callback));
 		}
 
+		public void LoadAudioClipForLevel(CustomLevel customLevel, Action<CustomLevel> clipReadyCallback)
+		{
+			Action callback = delegate { clipReadyCallback(customLevel); };
+			
+			StartCoroutine(LoadAudio(
+				"file:///" + customLevel.customSongInfo.path + "/" + customLevel.customSongInfo.GetAudioPath(), customLevel,
+				callback));
+		}
+
 		private IEnumerator WaitRemoveScores()
 		{
 			yield return new WaitForSecondsRealtime(1f);

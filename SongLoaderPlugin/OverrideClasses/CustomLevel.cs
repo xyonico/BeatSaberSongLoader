@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
 
 namespace SongLoaderPlugin.OverrideClasses
 {
@@ -21,6 +24,8 @@ namespace SongLoaderPlugin.OverrideClasses
 			_previewStartTime = customSongInfo.previewStartTime;
 			_previewDuration = customSongInfo.previewDuration;
 			_environmentSceneInfo = LoadSceneInfo(customSongInfo.environmentName);
+			
+			FixBPM();
 		}
 
 		public void SetAudioClip(AudioClip newAudioClip)
@@ -42,6 +47,40 @@ namespace SongLoaderPlugin.OverrideClasses
 		{
 			var sceneInfo = Resources.Load<SceneInfo>("SceneInfo/" + environmentName + "SceneInfo");
 			return sceneInfo == null ? Resources.Load<SceneInfo>("SceneInfo/DefaultEnvironmentSceneInfo") : sceneInfo;
+		}
+
+		private void FixBPM()
+		{
+			var bpms = new Dictionary<float, int> {{_beatsPerMinute, 0}};
+			foreach (var diffLevel in customSongInfo.difficultyLevels)
+			{
+				if (string.IsNullOrEmpty(diffLevel.json)) continue;
+				var bpm = GetBPMFromJson(diffLevel.json);
+				if (bpm > 0)
+				{
+					if (bpms.ContainsKey(bpm))
+					{
+						bpms[bpm]++;
+						continue;
+					}
+					bpms.Add(bpm, 1);
+				}
+			}
+
+			_beatsPerMinute = bpms.OrderByDescending(x => x.Value).First().Key;
+		}
+
+		//This is quicker than using a JSON parser
+		private float GetBPMFromJson(string json)
+		{
+			var split = json.Split(':');
+			for (var i = 0; i < split.Length; i++)
+			{
+				if (!split[i].Contains("_beatsPerMinute")) continue;
+				return Convert.ToSingle(split[i + 1].Split(',')[0]);
+			}
+
+			return 0;
 		}
 		
 		public class CustomDifficultyBeatmap : DifficultyBeatmap
