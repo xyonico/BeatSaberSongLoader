@@ -62,9 +62,11 @@ namespace SongLoaderPlugin.OverrideClasses
 					if (bpms.ContainsKey(bpm))
 					{
 						bpms[bpm]++;
-						continue;
 					}
-					bpms.Add(bpm, 1);
+					else
+					{
+						bpms.Add(bpm, 1);
+					}
 				}
 
 				var diffBeatmap = _difficultyBeatmaps.FirstOrDefault(x =>
