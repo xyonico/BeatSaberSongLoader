@@ -48,15 +48,22 @@ The following is a template for you to use:
 {
   "songName":"YourSongName",
   "songSubName":"ft. Name",
-  "authorName":"AuthorName",
+  "songAuthorName":"AuthorName",
   "beatsPerMinute":179.0, 
   "previewStartTime":12.0,
   "previewDuration":10.0,
+  "audioPath":"YourSong.ogg",
   "coverImagePath":"cover.jpg",
   "environmentName":"DefaultEnvironment",
+  "songTimeOffset":-2,
+  "shuffle":1,
+  "shufflePeriod":0.2,
+  "oneSaber":true,
+  "noteHitVolume":0.5,
+  "noteMissVolume":1,
   "difficultyLevels": [
-	{ "difficulty":"Expert", "difficultyRank":4, "audioPath":"YourSong.wav", "jsonPath":"expert.json" },
-	{ "difficulty":"Easy", "difficultyRank":0, "audioPath":"YourSong.ogg", "jsonPath":"easy.json" }
+	{ "difficulty":"Expert", "difficultyRank":4, "jsonPath":"expert.json" },
+	{ "difficulty":"Easy", "difficultyRank":0, "jsonPath":"easy.json" }
   ]
 }
 ```
@@ -71,6 +78,12 @@ ___
 "previewDuration" - Time in seconds the song will be previewed in selection screen
 "coverImagePath" - Cover image name
 "environmentName" - Game environment to be used
+"songTimeOffset" - Time in seconds of how early a song should start. Negative numbers for starting the song later
+"shuffle" - Time in number of beats how much a note should shift
+"shufflePeriod" - Time in number of beats how often a note should shift. Don't ask me why this is a feature, I don't know
+"oneSaber" - true or false if it should appear in the one saber list
+"noteHitVolume" - Volume from 0-1 of the hit sound effect
+"noteMissVolume" - Volume from 0-1 of the miss sound effect
 
 All possible environmentNames:
 -DefaultEnvironment
@@ -82,7 +95,6 @@ All possible environmentNames:
 	{
 		"difficulty": This can only be set to Easy, Normal, Hard, Expert or ExpertPlus,
 		"difficultyRank": Currently unused whole number for ranking difficulty,
-		"audioPath": The name of your audio file,
 		"jsonPath": The name of the json file for this specific difficulty
 	}
   ]
@@ -91,4 +103,5 @@ All possible environmentNames:
 # Keyboard Shortcuts
 *(Make sure Beat Saber's window is in focus when using these shortcuts)*
 ---
- * Press <kbd>R</kbd> when in main menu to update song list for rapid testing.
+ * Press <kbd>Ctrl+R</kbd> when in the main menu to do a full refresh. (This means removing deleted songs and updating existing songs)
+ * Press <kbd>R</kbd> when in main menu to do a quick refresh (This will only add new songs in the CustomSongs folder)
