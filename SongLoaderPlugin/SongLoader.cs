@@ -46,6 +46,8 @@ namespace SongLoaderPlugin
 		private bool _loadingCancelled;
 
 		public static readonly AudioClip TemporaryAudioClip = AudioClip.Create("temp", 1, 2, 1000, true);
+
+		private LogSeverity _minLogSeverity;
 		
 		public static void OnLoad()
 		{
@@ -58,6 +60,11 @@ namespace SongLoaderPlugin
 		private void Awake()
 		{
 			Instance = this;
+			
+			_minLogSeverity = Environment.CommandLine.Contains("--mute-song-loader")
+				? LogSeverity.Error
+				: LogSeverity.Info;
+			
 			CreateCustomLevelCollections();
 			SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
 			SceneManagerOnActiveSceneChanged(new Scene(), SceneManager.GetActiveScene());
@@ -66,6 +73,7 @@ namespace SongLoaderPlugin
 			RefreshSongs();
 
 			DontDestroyOnLoad(gameObject);
+
 		}
 
 		private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
@@ -206,8 +214,8 @@ namespace SongLoaderPlugin
 				}
 				catch (Exception e)
 				{
-					Log("Some plugin is throwing exception from the LoadingStartedEvent!");
-					Log(e.ToString());
+					Log("Some plugin is throwing exception from the LoadingStartedEvent!", LogSeverity.Error);
+					Log(e.ToString(), LogSeverity.Error);
 				}
 			}
 
@@ -292,7 +300,7 @@ namespace SongLoaderPlugin
 					yield return web.SendWebRequest();
 					if (web.isNetworkError || web.isHttpError)
 					{
-						Log("Error loading: " + spritePath + ": " + web.error);
+						Log("Error loading: " + spritePath + ": " + web.error, LogSeverity.Warn);
 						sprite = null;
 					}
 					else
@@ -328,7 +336,7 @@ namespace SongLoaderPlugin
 					{
 						if (Time.realtimeSinceStartup > timeout)
 						{
-							Log("Audio clip: " + audioClip.name + " timed out...");
+							Log("Audio clip: " + audioClip.name + " timed out...", LogSeverity.Warn);
 							break;
 						}
 
@@ -383,7 +391,6 @@ namespace SongLoaderPlugin
 						.Where(x => x.ToLower().EndsWith(".zip") || x.ToLower().EndsWith(".beat")).ToArray();
 					foreach (var songZip in songZips)
 					{
-						Log("Found zip: " + songZip);
 						//Check cache if zip already is extracted
 						string hash;
 						if (Utils.CreateMD5FromFile(songZip, out hash))
@@ -394,12 +401,11 @@ namespace SongLoaderPlugin
 							using (var unzip = new Unzip(songZip))
 							{
 								unzip.ExtractToDirectory(path + "/CustomSongs/.cache/" + hash);
-								Log("Extracted to " + path + "/CustomSongs/.cache/" + hash);
 							}
 						}
 						else
 						{
-							Log("Error reading zip " + songZip);
+							Log("Error reading zip " + songZip, LogSeverity.Warn);
 						}
 					}
 
@@ -413,7 +419,7 @@ namespace SongLoaderPlugin
 						var results = Directory.GetFiles(song, "info.json", SearchOption.AllDirectories);
 						if (results.Length == 0)
 						{
-							Log("Custom song folder '" + song + "' is missing info.json!");
+							Log("Custom song folder '" + song + "' is missing info.json files!", LogSeverity.Warn);
 							continue;
 						}
 
@@ -434,7 +440,7 @@ namespace SongLoaderPlugin
 							var id = customSongInfo.GetIdentifier();
 							if (CustomLevels.Any(x => x.levelID == id && x.customSongInfo != customSongInfo))
 							{
-								Log("Duplicate song found at " + customSongInfo.path);
+								Log("Duplicate song found at " + customSongInfo.path, LogSeverity.Warn);
 								continue;
 							}
 
@@ -454,7 +460,6 @@ namespace SongLoaderPlugin
 						if (!currentHashes.Contains(hash))
 						{
 							//Old cache
-							Log("Deleting old cache: " + song);
 							Directory.Delete(song, true);
 						}
 					}
@@ -462,8 +467,8 @@ namespace SongLoaderPlugin
 				}
 				catch (Exception e)
 				{
-					Log("RetrieveAllSongs failed:");
-					Log(e.ToString());
+					Log("RetrieveAllSongs failed:", LogSeverity.Error);
+					Log(e.ToString(), LogSeverity.Error);
 					throw;
 				}
 			};
@@ -524,7 +529,7 @@ namespace SongLoaderPlugin
 
 						if (string.IsNullOrEmpty(diffBeatmap.json))
 						{
-							Log("Couldn't find or parse difficulty json " + song.path + "/" + diffBeatmap.jsonPath);
+							Log("Couldn't find or parse difficulty json " + song.path + "/" + diffBeatmap.jsonPath, LogSeverity.Warn);
 							continue;
 						}
 
@@ -537,8 +542,8 @@ namespace SongLoaderPlugin
 					}
 					catch (Exception e)
 					{
-						Log("Error parsing difficulty level in song: " + song.path);
-						Log(e.Message);
+						Log("Error parsing difficulty level in song: " + song.path, LogSeverity.Warn);
+						Log(e.Message, LogSeverity.Warn);
 					}
 				}
 
@@ -552,8 +557,8 @@ namespace SongLoaderPlugin
 			}
 			catch (Exception e)
 			{
-				Log("Failed to load song: " + song.path);
-				Log(e.ToString());
+				Log("Failed to load song: " + song.path, LogSeverity.Warn);
+				Log(e.ToString(), LogSeverity.Warn);
 			}
 		}
 
@@ -567,7 +572,7 @@ namespace SongLoaderPlugin
 			}
 			catch (Exception)
 			{
-				Log("Error parsing song: " + songPath);
+				Log("Error parsing song: " + songPath, LogSeverity.Warn);
 				return null;
 			}
 
@@ -597,10 +602,10 @@ namespace SongLoaderPlugin
 			return songInfo;
 		}
 
-		private void Log(string message)
+		private void Log(string message, LogSeverity severity = LogSeverity.Info)
 		{
-			//Debug.Log("Song Loader: " + message);
-			Console.WriteLine("Song Loader: " + message);
+			if (severity < _minLogSeverity) return;
+			Console.WriteLine("Song Loader [" + severity.ToString().ToUpper() + "]: " + message);
 		}
 
 		private void Update()

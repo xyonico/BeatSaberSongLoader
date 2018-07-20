@@ -94,6 +94,7 @@
     <Compile Include="CustomSongInfo.cs" />
     <Compile Include="Internals\Unzip.cs" />
     <Compile Include="IScriptableObjectResetable.cs" />
+    <Compile Include="LogSeverity.cs" />
     <Compile Include="NoteHitVolumeChanger.cs" />
     <Compile Include="OverrideClasses\CustomBeatmapDataSO.cs" />
     <Compile Include="OverrideClasses\CustomLevel.cs" />
