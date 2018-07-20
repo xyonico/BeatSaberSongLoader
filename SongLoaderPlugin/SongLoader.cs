@@ -73,7 +73,6 @@ namespace SongLoaderPlugin
 			RefreshSongs();
 
 			DontDestroyOnLoad(gameObject);
-
 		}
 
 		private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)

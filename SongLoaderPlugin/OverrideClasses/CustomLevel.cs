@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using UnityEngine;
 
@@ -100,12 +101,12 @@ namespace SongLoaderPlugin.OverrideClasses
 			{
 				if (split[i].Contains("_beatsPerMinute"))
 				{
-					bpm = Convert.ToSingle(split[i + 1].Split(',')[0]);
+					bpm = Convert.ToSingle(split[i + 1].Split(',')[0], CultureInfo.InvariantCulture);
 				}
 				
 				if (split[i].Contains("_noteJumpSpeed"))
 				{
-					noteJumpSpeed = Convert.ToSingle(split[i + 1].Split(',')[0]);
+					noteJumpSpeed = Convert.ToSingle(split[i + 1].Split(',')[0], CultureInfo.InvariantCulture);
 				}
 			}
 		}
