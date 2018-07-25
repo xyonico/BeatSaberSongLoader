@@ -405,7 +405,8 @@ namespace SongLoaderPlugin
 									try 
 									{
 										Directory.CreateDirectory(dir);
-										using (FileStream f = File.Create(Path.Combine(dir, Path.GetFileName(entry.Name))))  {
+										using (FileStream f = File.Create(Path.Combine(dir, Path.GetFileName(entry.Name))))
+										{
 											unzip.Extract(entry.Name, f);
 										}
 									} catch { }
