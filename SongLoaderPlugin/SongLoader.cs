@@ -397,9 +397,20 @@ namespace SongLoaderPlugin
 							currentHashes.Add(hash);
 							if (cachedSongs.Any(x => x.Contains(hash))) continue;
 
-							using (var unzip = new Unzip(songZip))
+							using (var unzip = new Unzip(songZip)) 
 							{
-								unzip.ExtractToDirectory(path + "/CustomSongs/.cache/" + hash);
+								string dir = path + "/CustomSongs/.cache/" + hash;
+								foreach (Unzip.Entry entry in unzip.Entries) 
+								{
+									try 
+									{
+										Directory.CreateDirectory(dir);
+										using (FileStream f = File.Create(Path.Combine(dir, Path.GetFileName(entry.Name))))  {
+											unzip.Extract(entry.Name, f);
+										}
+									} catch { }
+								}
+								//unzip.ExtractToDirectory(path + "/CustomSongs/.cache/" + hash);
 							}
 						}
 						else
