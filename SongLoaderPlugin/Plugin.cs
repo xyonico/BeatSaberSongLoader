@@ -5,7 +5,9 @@ using UnityEngine.SceneManagement;
 namespace SongLoaderPlugin
 {
 	public class Plugin : IPlugin
-	{	
+	{
+		public const string VersionNumber = "v4.3.0";
+		
 		public string Name
 		{
 			get { return "Song Loader Plugin"; }
@@ -13,7 +15,7 @@ namespace SongLoaderPlugin
 
 		public string Version
 		{
-			get { return "v4.3.0"; }
+			get { return VersionNumber; }
 		}
 		
 		public void OnApplicationStart()

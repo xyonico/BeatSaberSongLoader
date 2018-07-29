@@ -200,6 +200,8 @@ namespace SongLoaderPlugin
 		public void RefreshSongs(bool fullRefresh = true)
 		{
 			if (SceneManager.GetActiveScene().name != MenuSceneName) return;
+			if (AreSongsLoading) return;
+			
 			Log(fullRefresh ? "Starting full song refresh" : "Starting song refresh");
 			AreSongsLoaded = false;
 			AreSongsLoading = true;
