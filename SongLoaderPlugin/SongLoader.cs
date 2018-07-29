@@ -22,7 +22,8 @@ namespace SongLoaderPlugin
 		public static bool AreSongsLoading { get; private set; }
 		public static float LoadingProgress { get; private set; }
 
-		public const int MenuIndex = 1;
+		public const string MenuSceneName = "Menu";
+		public const string GameSceneName = "StandardLevel";
 		
 		private static readonly Dictionary<string, Sprite> LoadedSprites = new Dictionary<string, Sprite>();
 		private static readonly Dictionary<string, AudioClip> LoadedAudioClips = new Dictionary<string, AudioClip>();
@@ -95,7 +96,7 @@ namespace SongLoaderPlugin
 			
 			StartCoroutine(WaitRemoveScores());
 
-			if (scene.buildIndex == 1)
+			if (scene.name == MenuSceneName)
 			{
 				_mainFlowCoordinator = Resources.FindObjectsOfTypeAll<MainFlowCoordinator>().FirstOrDefault();
 				_mainFlowCoordinator.SetPrivateField("_levelCollectionsForGameplayModes", _customLevelCollectionsForGameplayModes);
@@ -109,7 +110,7 @@ namespace SongLoaderPlugin
 				
 				standardLevelListViewController.didSelectLevelEvent += StandardLevelListViewControllerOnDidSelectLevelEvent;
 			}
-			else if (scene.buildIndex == 5)
+			else if (scene.name == GameSceneName)
 			{
 				if (NoteHitVolumeChanger.PrefabFound) return;
 				var mainGameData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
@@ -198,7 +199,7 @@ namespace SongLoaderPlugin
 
 		public void RefreshSongs(bool fullRefresh = true)
 		{
-			if (SceneManager.GetActiveScene().buildIndex != MenuIndex) return;
+			if (SceneManager.GetActiveScene().name != MenuSceneName) return;
 			Log(fullRefresh ? "Starting full song refresh" : "Starting song refresh");
 			AreSongsLoaded = false;
 			AreSongsLoading = true;

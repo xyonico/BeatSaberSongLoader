@@ -1,5 +1,6 @@
 ﻿using IllusionPlugin;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SongLoaderPlugin
 {
@@ -12,38 +13,41 @@ namespace SongLoaderPlugin
 
 		public string Version
 		{
-			get { return "v4.2.2"; }
+			get { return "v4.3.0"; }
 		}
 		
 		public void OnApplicationStart()
 		{
-			
+			SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
 		}
 
 		public void OnApplicationQuit()
 		{
 			PlayerPrefs.DeleteKey("lbPatched");
+			SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
 		}
 
-		public void OnLevelWasLoaded(int level)
+		private void SceneManagerOnActiveSceneChanged(Scene oldScene, Scene newScene)
 		{
+			if (newScene.name != SongLoader.MenuSceneName) return;
+			SongLoader.OnLoad();
 			
 		}
 
 		public void OnLevelWasInitialized(int level)
 		{
-			if (level != SongLoader.MenuIndex) return;
-			SongLoader.OnLoad();
 		}
 
 		public void OnUpdate()
 		{
-			
 		}
 
 		public void OnFixedUpdate()
-		{
-			
+		{	
+		}
+
+		public void OnLevelWasLoaded(int level)
+		{	
 		}
 	}
 }
