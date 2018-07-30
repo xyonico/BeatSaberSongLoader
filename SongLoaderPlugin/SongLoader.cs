@@ -424,7 +424,14 @@ namespace SongLoaderPlugin
 
 							using (var unzip = new Unzip(songZip))
 							{
-								unzip.ExtractToDirectory(path + "/CustomSongs/.cache/" + hash);
+								try
+								{
+									unzip.ExtractToDirectory(path + "/CustomSongs/.cache/" + hash);
+								}
+								catch (Exception e)
+								{
+									Log("Error extracting zip " + songZip + "\n" + e, LogSeverity.Warn);
+								}
 							}
 						}
 						else
