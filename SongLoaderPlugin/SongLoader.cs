@@ -459,38 +459,46 @@ namespace SongLoaderPlugin
 						
 						foreach (var result in results)
 						{
-							var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
-							if (!fullRefresh)
+							try
 							{
-								if (CustomLevels.Any(x => x.customSongInfo.path == songPath))
+								var songPath = Path.GetDirectoryName(result).Replace('\\', '/');
+								if (!fullRefresh)
 								{
+									if (CustomLevels.Any(x => x.customSongInfo.path == songPath))
+									{
+										continue;
+									}
+								}
+
+								var customSongInfo = GetCustomSongInfo(songPath);
+								if (customSongInfo == null) continue;
+								var id = customSongInfo.GetIdentifier();
+								if (loadedIDs.Any(x => x == id))
+								{
+									Log("Duplicate song found at " + customSongInfo.path, LogSeverity.Warn);
 									continue;
 								}
-							}
-							
-							var customSongInfo = GetCustomSongInfo(songPath);
-							if (customSongInfo == null) continue;
-							var id = customSongInfo.GetIdentifier();
-							if (loadedIDs.Any(x => x == id))
-							{
-								Log("Duplicate song found at " + customSongInfo.path, LogSeverity.Warn);
-								continue;
-							}
-							
-							loadedIDs.Add(id);
 
-							var i1 = i;
-							HMMainThreadDispatcher.instance.Enqueue(delegate
-							{
-								if (_loadingCancelled) return;
-								var level = LoadSong(customSongInfo);
-								if (level != null)
+								loadedIDs.Add(id);
+
+								var i1 = i;
+								HMMainThreadDispatcher.instance.Enqueue(delegate
 								{
-									levelList.Add(level);
-								}
-								
-								LoadingProgress = i1 / songFolders.Count;
-							});
+									if (_loadingCancelled) return;
+									var level = LoadSong(customSongInfo);
+									if (level != null)
+									{
+										levelList.Add(level);
+									}
+
+									LoadingProgress = i1 / songFolders.Count;
+								});
+							}
+							catch (Exception e)
+							{
+								Log("Failed to load song folder: " + result, LogSeverity.Warn);
+								Log(e.ToString(), LogSeverity.Warn);
+							}
 						}
 					}
 
@@ -509,7 +517,6 @@ namespace SongLoaderPlugin
 				{
 					Log("RetrieveAllSongs failed:", LogSeverity.Error);
 					Log(e.ToString(), LogSeverity.Error);
-					throw;
 				}
 			};
 			
