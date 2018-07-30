@@ -56,22 +56,27 @@ namespace SongLoaderPlugin.OverrideClasses
 			foreach (var diffLevel in customSongInfo.difficultyLevels)
 			{
 				if (string.IsNullOrEmpty(diffLevel.json)) continue;
-				float bpm, noteSpeed;
+				float? bpm, noteSpeed;
 				GetBPMAndNoteJump(diffLevel.json, out bpm, out noteSpeed);
-				if (bpms.ContainsKey(bpm))
+
+				if (bpm.HasValue)
 				{
-					bpms[bpm]++;
-				}
-				else
-				{
-					bpms.Add(bpm, 1);
+					if (bpms.ContainsKey(bpm.Value))
+					{
+						bpms[bpm.Value]++;
+					}
+					else
+					{
+						bpms.Add(bpm.Value, 1);
+					}
 				}
 
+				if (!noteSpeed.HasValue) return;
 				var diffBeatmap = _difficultyBeatmaps.FirstOrDefault(x =>
 					diffLevel.difficulty.ToEnum(LevelDifficulty.Normal) == x.difficulty);
 				var customBeatmap = diffBeatmap as CustomDifficultyBeatmap;
 				if (customBeatmap == null) continue;
-				customBeatmap.SetNoteJumpMovementSpeed(noteSpeed);
+				customBeatmap.SetNoteJumpMovementSpeed(noteSpeed.Value);
 			}
 
 			_beatsPerMinute = bpms.OrderByDescending(x => x.Value).First().Key;
@@ -88,10 +93,10 @@ namespace SongLoaderPlugin.OverrideClasses
 		}
 
 		//This is quicker than using a JSON parser
-		private void GetBPMAndNoteJump(string json, out float bpm, out float noteJumpSpeed)
+		private void GetBPMAndNoteJump(string json, out float? bpm, out float? noteJumpSpeed)
 		{
-			bpm = 0;
-			noteJumpSpeed = 0;
+			bpm = null;
+			noteJumpSpeed = null;
 			var split = json.Split(':');
 			for (var i = 0; i < split.Length; i++)
 			{

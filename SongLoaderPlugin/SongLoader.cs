@@ -123,7 +123,20 @@ namespace SongLoaderPlugin
 				if (beatmap != null)
 				{
 					_currentLevelPlaying = beatmap;
+					
+					if (_currentLevelPlaying.noteJumpMovementSpeed <= 0)
+					{
+						var beatmapObjectSpawnController =
+							Resources.FindObjectsOfTypeAll<BeatmapObjectSpawnController>().FirstOrDefault();
+						if (beatmapObjectSpawnController != null)
+						{
+							beatmapObjectSpawnController.Init(_currentLevelPlaying.level.beatsPerMinute,
+								_currentLevelPlaying.beatmapData.beatmapLinesData.Length,
+								_currentLevelPlaying.noteJumpMovementSpeed);
+						}
+					}
 				}
+
 				
 				if (NoteHitVolumeChanger.PrefabFound) return;
 				var song = CustomLevels.FirstOrDefault(x => x.levelID == level.level.levelID);
