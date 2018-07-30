@@ -124,6 +124,9 @@ namespace SongLoaderPlugin
 				{
 					_currentLevelPlaying = beatmap;
 					
+					//Beat Saber 0.11.1 introduced a check for if noteJumpMovementSpeed <= 0
+					//This breaks songs that have a negative noteJumpMovementSpeed and previously required a patcher to get working again
+					//I've added this to add support for that again, because why not.
 					if (_currentLevelPlaying.noteJumpMovementSpeed <= 0)
 					{
 						var beatmapObjectSpawnController =
@@ -407,11 +410,7 @@ namespace SongLoaderPlugin
 					{
 						cachedSongs = Directory.GetDirectories(path + "/CustomSongs/.cache");
 					}
-					else
-					{
-						Directory.CreateDirectory(path + "/CustomSongs/.cache");
-					}
-
+					
 					var songZips = Directory.GetFiles(path + "/CustomSongs")
 						.Where(x => x.ToLower().EndsWith(".zip") || x.ToLower().EndsWith(".beat")).ToArray();
 					foreach (var songZip in songZips)
@@ -436,6 +435,8 @@ namespace SongLoaderPlugin
 
 					var songFolders = Directory.GetDirectories(path + "/CustomSongs").ToList();
 					var songCaches = Directory.GetDirectories(path + "/CustomSongs/.cache");
+					
+					var loadedIDs = new List<string>();
 					
 					float i = 0;
 					foreach (var song in songFolders)
@@ -463,11 +464,13 @@ namespace SongLoaderPlugin
 							var customSongInfo = GetCustomSongInfo(songPath);
 							if (customSongInfo == null) continue;
 							var id = customSongInfo.GetIdentifier();
-							if (CustomLevels.Any(x => x.levelID == id && x.customSongInfo != customSongInfo))
+							if (loadedIDs.Any(x => x == id))
 							{
 								Log("Duplicate song found at " + customSongInfo.path, LogSeverity.Warn);
 								continue;
 							}
+							
+							loadedIDs.Add(id);
 
 							var i1 = i;
 							HMMainThreadDispatcher.instance.Enqueue(delegate
