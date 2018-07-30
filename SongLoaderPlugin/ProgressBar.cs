@@ -11,7 +11,8 @@ namespace SongLoaderPlugin
 	public class ProgressBar : MonoBehaviour
 	{
 		private Canvas _canvas;
-		private TMP_Text _creditText;
+		private TMP_Text _authorNameText;
+		private TMP_Text _pluginNameText;
 		private TMP_Text _headerText;
 		private Image _loadingBackg;
 		private Image _loadingBar;
@@ -21,10 +22,15 @@ namespace SongLoaderPlugin
 		private static readonly Vector3 Scale = new Vector3(0.01f, 0.01f, 0.01f);
 		
 		private static readonly Vector2 CanvasSize = new Vector2(100, 50);
+
+		private const string AuthorNameText = "xyonico's";
+		private const float AuthorNameFontSize = 7f;
+		private static readonly Vector2 AuthorNamePosition = new Vector2(0, 28);
 		
-		private static readonly Vector2 CreditPosition = new Vector2(0, 22);
-		private const string CreditText = "Song Loader Plugin <size=75%>by xyonico</size>";
-		private const float CreditFontSize = 9f;
+		private const string PluginNameText = "Song Loader Plugin <size=75%>" + Plugin.VersionNumber + "</size>";
+		private const float PluginNameFontSize = 9f;
+		private static readonly Vector2 PluginNamePosition = new Vector2(0, 22);
+		
 		private static readonly Vector2 HeaderPosition = new Vector2(0, 15);
 		private static readonly Vector2 HeaderSize = new Vector2(100, 20);
 		private const string HeaderText = "Loading songs...";
@@ -42,6 +48,7 @@ namespace SongLoaderPlugin
 
 		public void ShowMessage(string message, float time)
 		{
+			StopAllCoroutines();
 			_showingMessage = true;
 			_headerText.text = message;
 			_loadingBar.enabled = false;
@@ -52,6 +59,7 @@ namespace SongLoaderPlugin
 
 		public void ShowMessage(string message)
 		{
+			StopAllCoroutines();
 			_showingMessage = true;
 			_headerText.text = message;
 			_loadingBar.enabled = false;
@@ -90,6 +98,7 @@ namespace SongLoaderPlugin
 
 		private void SongLoaderOnLoadingStartedEvent(SongLoader obj)
 		{
+			StopAllCoroutines();
 			_showingMessage = false;
 			_headerText.text = HeaderText;
 			_loadingBar.enabled = true;
@@ -125,13 +134,21 @@ namespace SongLoaderPlugin
 			var rectTransform = _canvas.transform as RectTransform;
 			rectTransform.sizeDelta = CanvasSize;
 			
-			_creditText = new GameObject("Credit").AddComponent<TextMeshProUGUI>();
-			rectTransform = _creditText.transform as RectTransform;
+			_authorNameText = new GameObject("Author Name").AddComponent<TextMeshProUGUI>();
+			rectTransform = _authorNameText.transform as RectTransform;
 			rectTransform.SetParent(_canvas.transform, false);
-			rectTransform.anchoredPosition = CreditPosition;
+			rectTransform.anchoredPosition = AuthorNamePosition;
 			rectTransform.sizeDelta = HeaderSize;
-			_creditText.text = CreditText;
-			_creditText.fontSize = CreditFontSize;
+			_authorNameText.text = AuthorNameText;
+			_authorNameText.fontSize = AuthorNameFontSize;
+			
+			_pluginNameText = new GameObject("Plugin Name").AddComponent<TextMeshProUGUI>();
+			rectTransform = _pluginNameText.transform as RectTransform;
+			rectTransform.SetParent(_canvas.transform, false);
+			rectTransform.anchoredPosition = PluginNamePosition;
+			rectTransform.sizeDelta = HeaderSize;
+			_pluginNameText.text = PluginNameText;
+			_pluginNameText.fontSize = PluginNameFontSize;
 
 			_headerText = new GameObject("Header").AddComponent<TextMeshProUGUI>();
 			rectTransform = _headerText.transform as RectTransform;

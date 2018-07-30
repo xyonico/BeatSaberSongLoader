@@ -22,7 +22,8 @@ namespace SongLoaderPlugin
 		public static bool AreSongsLoading { get; private set; }
 		public static float LoadingProgress { get; private set; }
 
-		public const int MenuIndex = 1;
+		public const string MenuSceneName = "Menu";
+		public const string GameSceneName = "StandardLevel";
 		
 		private static readonly Dictionary<string, Sprite> LoadedSprites = new Dictionary<string, Sprite>();
 		private static readonly Dictionary<string, AudioClip> LoadedAudioClips = new Dictionary<string, AudioClip>();
@@ -30,6 +31,7 @@ namespace SongLoaderPlugin
 		private LeaderboardScoreUploader _leaderboardScoreUploader;
 		private MainFlowCoordinator _mainFlowCoordinator;
 		private StandardLevelDetailViewController _standardLevelDetailViewController;
+		private MainGameSceneSetupData _mainGameSceneSetupData;
 
 		private CustomLevelCollectionsForGameplayModes _customLevelCollectionsForGameplayModes;
 		private CustomLevelCollectionSO _standardLevelCollection;
@@ -44,6 +46,8 @@ namespace SongLoaderPlugin
 
 		private HMTask _loadingTask;
 		private bool _loadingCancelled;
+
+		private CustomLevel.CustomDifficultyBeatmap _currentLevelPlaying;
 
 		public static readonly AudioClip TemporaryAudioClip = AudioClip.Create("temp", 1, 2, 1000, true);
 
@@ -95,8 +99,9 @@ namespace SongLoaderPlugin
 			
 			StartCoroutine(WaitRemoveScores());
 
-			if (scene.buildIndex == 1)
+			if (scene.name == MenuSceneName)
 			{
+				_currentLevelPlaying = null;
 				_mainFlowCoordinator = Resources.FindObjectsOfTypeAll<MainFlowCoordinator>().FirstOrDefault();
 				_mainFlowCoordinator.SetPrivateField("_levelCollectionsForGameplayModes", _customLevelCollectionsForGameplayModes);
 				
@@ -109,13 +114,19 @@ namespace SongLoaderPlugin
 				
 				standardLevelListViewController.didSelectLevelEvent += StandardLevelListViewControllerOnDidSelectLevelEvent;
 			}
-			else if (scene.buildIndex == 5)
+			else if (scene.name == GameSceneName)
 			{
+				_mainGameSceneSetupData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
+				if (_mainGameSceneSetupData == null) return;
+				var level = _mainGameSceneSetupData.difficultyLevel;
+				var beatmap = level as CustomLevel.CustomDifficultyBeatmap;
+				if (beatmap != null)
+				{
+					_currentLevelPlaying = beatmap;
+				}
+				
 				if (NoteHitVolumeChanger.PrefabFound) return;
-				var mainGameData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
-				if (mainGameData == null) return;
-				var level = mainGameData.difficultyLevel.level;
-				var song = CustomLevels.FirstOrDefault(x => x.levelID == level.levelID);
+				var song = CustomLevels.FirstOrDefault(x => x.levelID == level.level.levelID);
 				if (song == null) return;
 				NoteHitVolumeChanger.SetVolume(song.customSongInfo.noteHitVolume, song.customSongInfo.noteMissVolume);
 			}
@@ -198,7 +209,9 @@ namespace SongLoaderPlugin
 
 		public void RefreshSongs(bool fullRefresh = true)
 		{
-			if (SceneManager.GetActiveScene().buildIndex != MenuIndex) return;
+			if (SceneManager.GetActiveScene().name != MenuSceneName) return;
+			if (AreSongsLoading) return;
+			
 			Log(fullRefresh ? "Starting full song refresh" : "Starting song refresh");
 			AreSongsLoaded = false;
 			AreSongsLoading = true;
@@ -447,7 +460,12 @@ namespace SongLoaderPlugin
 							HMMainThreadDispatcher.instance.Enqueue(delegate
 							{
 								if (_loadingCancelled) return;
-								LoadSong(customSongInfo, levelList);
+								var level = LoadSong(customSongInfo);
+								if (level != null)
+								{
+									levelList.Add(level);
+								}
+								
 								LoadingProgress = i1 / songFolders.Count;
 							});
 						}
@@ -511,7 +529,7 @@ namespace SongLoaderPlugin
 			_loadingTask.Run();
 		}
 
-		private void LoadSong(CustomSongInfo song, List<CustomLevel> levelList)
+		private CustomLevel LoadSong(CustomSongInfo song)
 		{
 			try
 			{
@@ -546,19 +564,21 @@ namespace SongLoaderPlugin
 					}
 				}
 
-				if (difficultyBeatmaps.Count == 0) return;
+				if (difficultyBeatmaps.Count == 0) return null;
 
 				newLevel.SetDifficultyBeatmaps(difficultyBeatmaps.ToArray());
 				newLevel.InitData();
 
 				StartCoroutine(LoadSprite("file:///" + song.path + "/" + song.coverImagePath, newLevel));
-				levelList.Add(newLevel);
+				return newLevel;
 			}
 			catch (Exception e)
 			{
 				Log("Failed to load song: " + song.path, LogSeverity.Warn);
 				Log(e.ToString(), LogSeverity.Warn);
 			}
+
+			return null;
 		}
 
 		private CustomSongInfo GetCustomSongInfo(string songPath)
@@ -611,8 +631,46 @@ namespace SongLoaderPlugin
 		{
 			if (Input.GetKeyDown(KeyCode.R))
 			{
+				if (_currentLevelPlaying != null)
+				{
+					ReloadCurrentSong();
+					return;
+				}
 				RefreshSongs(Input.GetKey(KeyCode.LeftControl));
 			}
+		}
+
+		private void ReloadCurrentSong()
+		{
+			if (!_mainGameSceneSetupData.gameplayOptions.noEnergy) return;
+			var reloadedLevel = LoadSong(GetCustomSongInfo(_currentLevelPlaying.customLevel.customSongInfo.path));
+			if (reloadedLevel == null) return;
+			
+			reloadedLevel.FixBPMAndGetNoteJumpMovementSpeed();
+			reloadedLevel.SetAudioClip(_currentLevelPlaying.customLevel.audioClip);
+					
+			RemoveSong(_currentLevelPlaying.customLevel);
+			CustomLevels.Add(reloadedLevel);
+					
+			if (reloadedLevel.customSongInfo.oneSaber)
+			{
+				_oneSaberLevelCollection.LevelList.Add(reloadedLevel);
+			}
+			else
+			{
+				_standardLevelCollection.LevelList.Add(reloadedLevel);
+				_noArrowsLevelCollection.LevelList.Add(reloadedLevel);
+				_partyLevelCollection.LevelList.Add(reloadedLevel);
+			}
+					
+			var orderedList = CustomLevels.OrderBy(x => x.songName);
+			CustomLevels = orderedList.ToList();
+					
+			_mainGameSceneSetupData.WillBeUsedInTransition();
+			_mainGameSceneSetupData.Init(
+				reloadedLevel.GetDifficultyLevel(_mainGameSceneSetupData.difficultyLevel.difficulty),
+				_mainGameSceneSetupData.gameplayOptions, _mainGameSceneSetupData.gameplayMode, 0);
+			_mainGameSceneSetupData.TransitionToScene(0.35f);
 		}
 
 		private static string EncodePath(string path)

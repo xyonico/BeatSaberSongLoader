@@ -113,6 +113,11 @@ namespace SongLoaderPlugin.OverrideClasses
 			{
 			}
 
+			public CustomLevel customLevel
+			{
+				get { return level as CustomLevel; }
+			}
+
 			public CustomBeatmapDataSO BeatmapDataSO
 			{
 				get { return _beatmapData as CustomBeatmapDataSO; }

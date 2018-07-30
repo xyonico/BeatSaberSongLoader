@@ -33,6 +33,7 @@ namespace SongLoaderPlugin
 		{
 			_pool.Clear();
 			_createdObj.ForEach(x => x.Reset());
+			
 			_pool.AddRange(_createdObj);
 		}
 	}
