@@ -58,23 +58,19 @@ namespace SongLoaderPlugin.OverrideClasses
 				if (string.IsNullOrEmpty(diffLevel.json)) continue;
 				float bpm, noteSpeed;
 				GetBPMAndNoteJump(diffLevel.json, out bpm, out noteSpeed);
-				if (bpm > 0)
+				if (bpms.ContainsKey(bpm))
 				{
-					if (bpms.ContainsKey(bpm))
-					{
-						bpms[bpm]++;
-					}
-					else
-					{
-						bpms.Add(bpm, 1);
-					}
+					bpms[bpm]++;
+				}
+				else
+				{
+					bpms.Add(bpm, 1);
 				}
 
 				var diffBeatmap = _difficultyBeatmaps.FirstOrDefault(x =>
 					diffLevel.difficulty.ToEnum(LevelDifficulty.Normal) == x.difficulty);
 				var customBeatmap = diffBeatmap as CustomDifficultyBeatmap;
 				if (customBeatmap == null) continue;
-				if (customBeatmap.noteJumpMovementSpeed > 0) continue;
 				customBeatmap.SetNoteJumpMovementSpeed(noteSpeed);
 			}
 
