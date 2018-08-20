@@ -8,7 +8,6 @@ using System.IO;
 using SimpleJSON;
 using SongLoaderPlugin.Internals;
 using SongLoaderPlugin.OverrideClasses;
-using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 
 namespace SongLoaderPlugin
@@ -318,26 +317,21 @@ namespace SongLoaderPlugin
 			scores.RemoveAll(x => scoresToRemove.Contains(x));
 		}
 
-		private IEnumerator LoadSprite(string spritePath, CustomLevel customLevel)
+		private void LoadSprite(string spritePath, CustomLevel customLevel)
 		{
 			Sprite sprite;
 			if (!LoadedSprites.ContainsKey(spritePath))
 			{
-				using (var web = UnityWebRequestTexture.GetTexture(EncodePath(spritePath), true))
+				var bytes = File.ReadAllBytes(spritePath);
+				var tex = new Texture2D(256, 256);
+				if (!tex.LoadImage(bytes, true))
 				{
-					yield return web.SendWebRequest();
-					if (web.isNetworkError || web.isHttpError)
-					{
-						Log("Error loading: " + spritePath + ": " + web.error, LogSeverity.Warn);
-						sprite = null;
-					}
-					else
-					{
-						var tex = DownloadHandlerTexture.GetContent(web);
-						sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f, 100, 1);
-						LoadedSprites.Add(spritePath, sprite);
-					}
+					Log("Failed to load cover image: " + spritePath);
+					return;
 				}
+				
+				sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f, 100, 1);
+				LoadedSprites.Add(spritePath, sprite);
 			}
 			else
 			{
@@ -598,7 +592,7 @@ namespace SongLoaderPlugin
 				newLevel.SetDifficultyBeatmaps(difficultyBeatmaps.ToArray());
 				newLevel.InitData();
 
-				StartCoroutine(LoadSprite("file:///" + song.path + "/" + song.coverImagePath, newLevel));
+				LoadSprite(song.path + "/" + song.coverImagePath, newLevel);
 				return newLevel;
 			}
 			catch (Exception e)

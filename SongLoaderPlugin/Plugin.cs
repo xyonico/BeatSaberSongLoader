@@ -6,7 +6,7 @@ namespace SongLoaderPlugin
 {
 	public class Plugin : IPlugin
 	{
-		public const string VersionNumber = "v4.3.0";
+		public const string VersionNumber = "v4.3.1";
 		
 		public string Name
 		{
