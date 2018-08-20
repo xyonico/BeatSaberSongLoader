@@ -6,6 +6,7 @@
 		{
 			get { return _jsonData; }
 		}
+		
 		public void Reset()
 		{
 			

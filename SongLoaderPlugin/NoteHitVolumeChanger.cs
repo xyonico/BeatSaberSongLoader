@@ -1,6 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.Linq;
+﻿using System.Linq;
 using UnityEngine;
 
 namespace SongLoaderPlugin
@@ -12,10 +10,12 @@ namespace SongLoaderPlugin
 		private static float _normalVolume;
 		private static float _normalMissVolume;
 
-		//Code snippet comes from Taz's NoteHitVolume plugin:
-		//https://github.com/taz030485/NoteHitVolume/blob/master/NoteHitVolume/NoteHitVolume.cs
+		// Code snippet comes from Taz's NoteHitVolume plugin:
+		// https://github.com/taz030485/NoteHitVolume/blob/master/NoteHitVolume/NoteHitVolume.cs
 		public static void SetVolume(float hitVolume, float missVolume)
 		{
+			/* NoteHitVolumeChanger is disabled until it's updated to support Beat Saber 0.11.2
+			
 			hitVolume = Mathf.Clamp01(hitVolume);
 			missVolume = Mathf.Clamp01(missVolume);
 			var pooled = false;
@@ -52,6 +52,8 @@ namespace SongLoaderPlugin
 					}
 				}
 			}
+			
+			*/
 		}
 	}
 }

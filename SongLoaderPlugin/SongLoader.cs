@@ -70,8 +70,8 @@ namespace SongLoaderPlugin
 				: LogSeverity.Info;
 			
 			CreateCustomLevelCollections();
-			SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
-			SceneManagerOnActiveSceneChanged(new Scene(), SceneManager.GetActiveScene());
+			SceneManager.sceneLoaded += SceneManagerOnSceneLoaded;
+			SceneManagerOnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
 			_progressBar = ProgressBar.Create();
 			
 			RefreshSongs();
@@ -79,7 +79,7 @@ namespace SongLoaderPlugin
 			DontDestroyOnLoad(gameObject);
 		}
 
-		private void SceneManagerOnActiveSceneChanged(Scene arg0, Scene scene)
+		private void SceneManagerOnSceneLoaded(Scene scene, LoadSceneMode mode)
 		{
 			if (AreSongsLoading)
 			{
@@ -399,7 +399,7 @@ namespace SongLoaderPlugin
 			Action job = delegate
 			{
 				try
-				{	
+				{
 					stopwatch.Start();
 					var path = Environment.CurrentDirectory;
 					path = path.Replace('\\', '/');
@@ -441,7 +441,6 @@ namespace SongLoaderPlugin
 					}
 
 					var songFolders = Directory.GetDirectories(path + "/CustomSongs").ToList();
-					var songCaches = Directory.GetDirectories(path + "/CustomSongs/.cache");
 					
 					var loadedIDs = new List<string>();
 					
@@ -502,7 +501,7 @@ namespace SongLoaderPlugin
 						}
 					}
 
-					foreach (var song in songCaches)
+					foreach (var song in cachedSongs)
 					{
 						var hash = Path.GetFileName(song);
 						if (!currentHashes.Contains(hash))

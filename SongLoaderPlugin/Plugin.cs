@@ -20,16 +20,16 @@ namespace SongLoaderPlugin
 		
 		public void OnApplicationStart()
 		{
-			SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
+			SceneManager.sceneLoaded += SceneManagerOnSceneLoaded;
 		}
 
 		public void OnApplicationQuit()
 		{
 			PlayerPrefs.DeleteKey("lbPatched");
-			SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
+			SceneManager.sceneLoaded -= SceneManagerOnSceneLoaded;
 		}
 
-		private void SceneManagerOnActiveSceneChanged(Scene oldScene, Scene newScene)
+		private void SceneManagerOnSceneLoaded(Scene newScene, LoadSceneMode mode)
 		{
 			if (newScene.name != SongLoader.MenuSceneName) return;
 			SongLoader.OnLoad();
