@@ -20,9 +20,13 @@ namespace SongLoaderPlugin
 		public static bool AreSongsLoaded { get; private set; }
 		public static bool AreSongsLoading { get; private set; }
 		public static float LoadingProgress { get; private set; }
+		public static CustomLevelCollectionsForGameplayModes CustomLevelCollectionsForGameplayModes
+		{
+			get { return _customLevelCollectionsForGameplayModes; }
+		}
 
 		public const string MenuSceneName = "Menu";
-		public const string GameSceneName = "StandardLevel";
+		public const string GameSceneName = "GameCore";
 		
 		private static readonly Dictionary<string, Sprite> LoadedSprites = new Dictionary<string, Sprite>();
 		private static readonly Dictionary<string, AudioClip> LoadedAudioClips = new Dictionary<string, AudioClip>();
@@ -32,7 +36,7 @@ namespace SongLoaderPlugin
 		private StandardLevelDetailViewController _standardLevelDetailViewController;
 		private MainGameSceneSetupData _mainGameSceneSetupData;
 
-		private CustomLevelCollectionsForGameplayModes _customLevelCollectionsForGameplayModes;
+		private static CustomLevelCollectionsForGameplayModes _customLevelCollectionsForGameplayModes;
 		private CustomLevelCollectionSO _standardLevelCollection;
 		private CustomLevelCollectionSO _oneSaberLevelCollection;
 		private CustomLevelCollectionSO _noArrowsLevelCollection;
@@ -97,7 +101,7 @@ namespace SongLoaderPlugin
 			}
 			
 			StartCoroutine(WaitRemoveScores());
-
+			
 			if (scene.name == MenuSceneName)
 			{
 				_currentLevelPlaying = null;
@@ -123,27 +127,32 @@ namespace SongLoaderPlugin
 				{
 					_currentLevelPlaying = beatmap;
 					
-					//Beat Saber 0.11.1 introduced a check for if noteJumpMovementSpeed <= 0
-					//This breaks songs that have a negative noteJumpMovementSpeed and previously required a patcher to get working again
-					//I've added this to add support for that again, because why not.
-					if (_currentLevelPlaying.noteJumpMovementSpeed <= 0)
-					{
-						var beatmapObjectSpawnController =
-							Resources.FindObjectsOfTypeAll<BeatmapObjectSpawnController>().FirstOrDefault();
-						if (beatmapObjectSpawnController != null)
-						{
-							beatmapObjectSpawnController.Init(_currentLevelPlaying.level.beatsPerMinute,
-								_currentLevelPlaying.beatmapData.beatmapLinesData.Length,
-								_currentLevelPlaying.noteJumpMovementSpeed);
-						}
-					}
+					//The note jump movement speed now gets set in the Start method, so we're too early here. We have to wait a bit before overriding.
+					Invoke(nameof(DelayedNoteJumpMovementSpeedFix), 0.1f);
 				}
-
 				
 				if (NoteHitVolumeChanger.PrefabFound) return;
 				var song = CustomLevels.FirstOrDefault(x => x.levelID == level.level.levelID);
 				if (song == null) return;
 				NoteHitVolumeChanger.SetVolume(song.customSongInfo.noteHitVolume, song.customSongInfo.noteMissVolume);
+			}
+		}
+
+		private void DelayedNoteJumpMovementSpeedFix()
+		{
+			//Beat Saber 0.11.1 introduced a check for if noteJumpMovementSpeed <= 0
+			//This breaks songs that have a negative noteJumpMovementSpeed and previously required a patcher to get working again
+			//I've added this to add support for that again, because why not.
+			if (_currentLevelPlaying.noteJumpMovementSpeed <= 0)
+			{
+				var beatmapObjectSpawnController =
+					Resources.FindObjectsOfTypeAll<BeatmapObjectSpawnController>().FirstOrDefault();
+				if (beatmapObjectSpawnController != null)
+				{
+					beatmapObjectSpawnController.Init(_currentLevelPlaying.level.beatsPerMinute,
+						_currentLevelPlaying.beatmapData.beatmapLinesData.Length,
+						_currentLevelPlaying.noteJumpMovementSpeed);
+				}
 			}
 		}
 
@@ -322,6 +331,12 @@ namespace SongLoaderPlugin
 			Sprite sprite;
 			if (!LoadedSprites.ContainsKey(spritePath))
 			{
+				if (!File.Exists(spritePath))
+				{
+					//Cover image doesn't exist, ignore it.
+					return;
+				}
+				
 				var bytes = File.ReadAllBytes(spritePath);
 				var tex = new Texture2D(256, 256);
 				if (!tex.LoadImage(bytes, true))
