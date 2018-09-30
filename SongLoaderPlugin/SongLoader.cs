@@ -546,11 +546,30 @@ namespace SongLoaderPlugin
 					else
 					{
                         if (customLevel.customSongInfo.difficultyLevels.Where((CustomSongInfo.DifficultyLevel x) => x.chromaToggle).Count() == 0)
+                        {
                             _standardLevelCollection.LevelList.Add(customLevel);
+                            _noArrowsLevelCollection.LevelList.Add(customLevel);
+                            _partyLevelCollection.LevelList.Add(customLevel);
+                        }
                         else
-                            Log(string.Format("Level {0} includes a ChromaToggle map. It will not be added to the Standard Level Collection.", customLevel.songName));
-						_noArrowsLevelCollection.LevelList.Add(customLevel);
-						_partyLevelCollection.LevelList.Add(customLevel);
+                        {
+                            try
+                            {
+                                Log(string.Format("Level {0} includes a ChromaToggle map. ChromaToggle maps will be filtered from the Standard Level Collection.", customLevel.songName));
+                                CustomSongInfo info = customLevel.customSongInfo;
+                                info.songAuthorName += " <color=#00FFFF>(ChromaToggle Enabled!)</color>";
+                                _partyLevelCollection.LevelList.Add(LoadSong(info));
+                                CustomSongInfo filteredSong = LoadSong(info).customSongInfo;
+                                filteredSong.difficultyLevels = customLevel.customSongInfo.difficultyLevels.Where((CustomSongInfo.DifficultyLevel x) => !x.chromaToggle).ToArray();
+                                filteredSong.songAuthorName = filteredSong.songAuthorName.Substring(0, filteredSong.songAuthorName.IndexOf('<')) + " <color=#FF0000>(Filtered)</color>";
+                                _standardLevelCollection.LevelList.Add(LoadSong(filteredSong));
+                                _noArrowsLevelCollection.LevelList.Add(LoadSong(filteredSong));
+                            }
+                            catch (Exception e)
+                            {
+                                Log(e.ToString(), LogSeverity.Error);
+                            }
+                        }
 					}
 				}
 
@@ -648,27 +667,18 @@ namespace SongLoaderPlugin
 				var difficultyRank = (int)difficulty;
 
                 //(Attempts) to detect ChromaToggle maps when skips the map when ChromaToggle isnt detected
-                try
+                if (n["chromaToggle"] == "On")
                 {
-                    if (n["chromaToggle"] == "On")
-                    {
-                        try
-                        {//If for some reason it fails getting ChromaToggle, it errors. If it gets ChromaToggle but its null, throw an error. Same result!
-                            if (ChromaToggle.Plugin.mainSettingsModel == null)
-                                throw new Exception();
-                            else
-                                songInfo.authorName += " <color=#00FFFF>(ChromaToggle Enabled!)</color>";
-                        }
-                        catch (Exception)
-                        {
-                            Log(string.Format("Level {0} on Difficulty {1} is ChromaToggle enabled, but ChromaToggle was not detected. Skipping...", songInfo.songName, difficulty.ToString()));
-                            continue;
-                        }
+                    try
+                    {//If for some reason it fails getting ChromaToggle, it errors. If it gets ChromaToggle but its null, throw an error. Same result!
+                        if (ChromaToggle.Plugin.mainSettingsModel == null)
+                            throw new Exception();
                     }
-                }
-                catch (Exception e)
-                {
-                    Log(e.ToString());
+                    catch (Exception)
+                    {
+                        Log(string.Format("Level {0} on Difficulty {1} is ChromaToggle enabled, but ChromaToggle was not detected. Skipping...", songInfo.songName, difficulty.ToString()));
+                        continue;
+                    }
                 }
 
                 diffLevels.Add(new CustomSongInfo.DifficultyLevel
