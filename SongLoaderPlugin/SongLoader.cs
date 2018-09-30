@@ -657,7 +657,7 @@ namespace SongLoaderPlugin
                         }
                         catch (Exception)
                         {
-                            Log(string.Format("Level {0} on Difficulty {1} is ChromaToggle enabled, but ChromaToggle was not detected. Skipping...", n["songName"], difficulty.ToString()));
+                            Log(string.Format("Level {0} on Difficulty {1} is ChromaToggle enabled, but ChromaToggle was not detected. Skipping...", songInfo.songName, difficulty.ToString()));
                             continue;
                         }
                     }
