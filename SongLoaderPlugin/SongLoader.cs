@@ -644,8 +644,30 @@ namespace SongLoaderPlugin
 				n = diffs[i];
 				var difficulty = Utils.ToEnum(n["difficulty"], LevelDifficulty.Normal);
 				var difficultyRank = (int)difficulty;
-				
-				diffLevels.Add(new CustomSongInfo.DifficultyLevel
+
+                //(Attempts) to detect ChromaToggle maps when skips the map when ChromaToggle isnt detected
+                try
+                {
+                    if (n["chromaToggle"] == "On")
+                    {
+                        try
+                        {//If for some reason it fails getting ChromaToggle, it errors. If it gets ChromaToggle but its null, throw an error. Same result!
+                            if (ChromaToggle.Plugin.mainSettingsModel == null)
+                                throw new Exception();
+                        }
+                        catch (Exception)
+                        {
+                            Log(string.Format("Level {0} on Difficulty {1} is ChromaToggle enabled, but ChromaToggle was not detected. Skipping...", n["songName"], difficulty.ToString()));
+                            continue;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log(e.ToString());
+                }
+
+                diffLevels.Add(new CustomSongInfo.DifficultyLevel
 				{
 					difficulty = n["difficulty"],
 					difficultyRank = difficultyRank,
