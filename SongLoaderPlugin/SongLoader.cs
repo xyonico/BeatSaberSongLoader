@@ -635,7 +635,6 @@ namespace SongLoaderPlugin
 				Log("Error parsing song: " + songPath, LogSeverity.Warn);
 				return null;
 			}
-
 			songInfo.path = songPath;
 
 			//Here comes SimpleJSON to the rescue when JSONUtility can't handle an array.
@@ -657,6 +656,8 @@ namespace SongLoaderPlugin
                         {//If for some reason it fails getting ChromaToggle, it errors. If it gets ChromaToggle but its null, throw an error. Same result!
                             if (ChromaToggle.Plugin.mainSettingsModel == null)
                                 throw new Exception();
+                            else
+                                songInfo.authorName += " <color=#00FFFF>(ChromaToggle Enabled!)</color>";
                         }
                         catch (Exception)
                         {
