@@ -38,6 +38,7 @@ namespace SongLoaderPlugin
 			public string jsonPath;
 			public string json;
 			public float noteJumpMovementSpeed;
+            public bool chromaToggle;
 		}
 
 		public string GetIdentifier()

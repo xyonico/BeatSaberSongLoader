@@ -545,7 +545,10 @@ namespace SongLoaderPlugin
 					}
 					else
 					{
-						_standardLevelCollection.LevelList.Add(customLevel);
+                        if (customLevel.customSongInfo.difficultyLevels.Where((CustomSongInfo.DifficultyLevel x) => x.chromaToggle).Count() == 0)
+                            _standardLevelCollection.LevelList.Add(customLevel);
+                        else
+                            Log(string.Format("Level {0} includes a ChromaToggle map. It will not be added to the Standard Level Collection.", customLevel.songName));
 						_noArrowsLevelCollection.LevelList.Add(customLevel);
 						_partyLevelCollection.LevelList.Add(customLevel);
 					}
@@ -673,7 +676,8 @@ namespace SongLoaderPlugin
 					difficultyRank = difficultyRank,
 					audioPath = n["audioPath"],
 					jsonPath = n["jsonPath"],
-					noteJumpMovementSpeed = n["noteJumpMovementSpeed"]
+					noteJumpMovementSpeed = n["noteJumpMovementSpeed"],
+                    chromaToggle = n["chromaToggle"] == "On"
 				});
 			}
 
