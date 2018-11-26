@@ -69,19 +69,19 @@ namespace SongLoaderPlugin
 
 		private void OnEnable()
 		{
-			SceneManager.sceneLoaded += SceneManagerOnSceneLoaded;
+			SceneManager.activeSceneChanged += SceneManagerOnActiveSceneChanged;
 			SongLoader.LoadingStartedEvent += SongLoaderOnLoadingStartedEvent;
 			SongLoader.SongsLoadedEvent += SongLoaderOnSongsLoadedEvent;
 		}
 
 		private void OnDisable()
 		{
-			SceneManager.sceneLoaded -= SceneManagerOnSceneLoaded;
+			SceneManager.activeSceneChanged -= SceneManagerOnActiveSceneChanged;
 			SongLoader.LoadingStartedEvent -= SongLoaderOnLoadingStartedEvent;
 			SongLoader.SongsLoadedEvent -= SongLoaderOnSongsLoadedEvent;
 		}
 
-		private void SceneManagerOnSceneLoaded(Scene newScene, LoadSceneMode mode)
+		private void SceneManagerOnActiveSceneChanged(Scene oldScene, Scene newScene)
 		{
 			if (newScene.name == SongLoader.MenuSceneName)
 			{

@@ -20,27 +20,17 @@ namespace SongLoaderPlugin
 		public static bool AreSongsLoaded { get; private set; }
 		public static bool AreSongsLoading { get; private set; }
 		public static float LoadingProgress { get; private set; }
-		public static CustomLevelCollectionsForGameplayModes CustomLevelCollectionsForGameplayModes
-		{
-			get { return _customLevelCollectionsForGameplayModes; }
-		}
+		public static CustomLevelCollectionSO CustomLevelCollectionSO { get; private set; }
 
 		public const string MenuSceneName = "Menu";
 		public const string GameSceneName = "GameCore";
 		
 		private static readonly Dictionary<string, Sprite> LoadedSprites = new Dictionary<string, Sprite>();
 		private static readonly Dictionary<string, AudioClip> LoadedAudioClips = new Dictionary<string, AudioClip>();
-
+		
 		private LeaderboardScoreUploader _leaderboardScoreUploader;
-		private MainFlowCoordinator _mainFlowCoordinator;
 		private StandardLevelDetailViewController _standardLevelDetailViewController;
-		private MainGameSceneSetupData _mainGameSceneSetupData;
-
-		private static CustomLevelCollectionsForGameplayModes _customLevelCollectionsForGameplayModes;
-		private CustomLevelCollectionSO _standardLevelCollection;
-		private CustomLevelCollectionSO _oneSaberLevelCollection;
-		private CustomLevelCollectionSO _noArrowsLevelCollection;
-		private CustomLevelCollectionSO _partyLevelCollection;
+		private StandardLevelSceneSetupDataSO _standardLevelSceneSetupData;
 		
 		private readonly ScriptableObjectPool<CustomLevel> _customLevelPool = new ScriptableObjectPool<CustomLevel>();
 		private readonly ScriptableObjectPool<CustomBeatmapDataSO> _beatmapDataPool = new ScriptableObjectPool<CustomBeatmapDataSO>();
@@ -49,12 +39,14 @@ namespace SongLoaderPlugin
 
 		private HMTask _loadingTask;
 		private bool _loadingCancelled;
+		private SceneEvents _sceneEvents;
 
 		private CustomLevel.CustomDifficultyBeatmap _currentLevelPlaying;
 
 		public static readonly AudioClip TemporaryAudioClip = AudioClip.Create("temp", 1, 2, 1000, true);
 
 		private LogSeverity _minLogSeverity;
+		private bool _noArrowsSelected;
 		
 		public static void OnLoad()
 		{
@@ -72,17 +64,17 @@ namespace SongLoaderPlugin
 				? LogSeverity.Error
 				: LogSeverity.Info;
 			
-			CreateCustomLevelCollections();
-			SceneManager.sceneLoaded += SceneManagerOnSceneLoaded;
-			SceneManagerOnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
 			_progressBar = ProgressBar.Create();
 			
+			OnSceneTransitioned(SceneManager.GetActiveScene());
 			RefreshSongs();
 
 			DontDestroyOnLoad(gameObject);
+
+			SceneEvents.Instance.SceneTransitioned += OnSceneTransitioned;
 		}
 
-		private void SceneManagerOnSceneLoaded(Scene scene, LoadSceneMode mode)
+		private void OnSceneTransitioned(Scene activeScene)
 		{
 			if (AreSongsLoading)
 			{
@@ -102,26 +94,39 @@ namespace SongLoaderPlugin
 			
 			StartCoroutine(WaitRemoveScores());
 			
-			if (scene.name == MenuSceneName)
+			if (activeScene.name == MenuSceneName)
 			{
 				_currentLevelPlaying = null;
-				_mainFlowCoordinator = Resources.FindObjectsOfTypeAll<MainFlowCoordinator>().FirstOrDefault();
-				_mainFlowCoordinator.SetPrivateField("_levelCollectionsForGameplayModes", _customLevelCollectionsForGameplayModes);
+
+				if (CustomLevelCollectionSO == null)
+				{
+					var levelCollectionSO = Resources.FindObjectsOfTypeAll<LevelCollectionSO>().FirstOrDefault();
+					CustomLevelCollectionSO = CustomLevelCollectionSO.ReplaceOriginal(levelCollectionSO);
+				}
+				else
+				{
+					CustomLevelCollectionSO.ReplaceReferences();
+				}
 				
 				_standardLevelDetailViewController = Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().FirstOrDefault();
 				if (_standardLevelDetailViewController == null) return;
 				_standardLevelDetailViewController.didPressPlayButtonEvent += StandardLevelDetailControllerOnDidPressPlayButtonEvent;
 				
-				var standardLevelListViewController = Resources.FindObjectsOfTypeAll<StandardLevelListViewController>().FirstOrDefault();
-				if (standardLevelListViewController == null) return;
+				var levelListViewController = Resources.FindObjectsOfTypeAll<LevelListViewController>().FirstOrDefault();
+				if (levelListViewController == null) return;
 				
-				standardLevelListViewController.didSelectLevelEvent += StandardLevelListViewControllerOnDidSelectLevelEvent;
+				levelListViewController.didSelectLevelEvent += StandardLevelListViewControllerOnDidSelectLevelEvent;
+
+				var characteristicViewController = Resources.FindObjectsOfTypeAll<BeatmapCharacteristicSelectionViewController>().FirstOrDefault();
+				if (characteristicViewController == null) return;
+				
+				characteristicViewController.didSelectBeatmapCharacteristicEvent += OnDidSelectBeatmapCharacteristicEvent;
 			}
-			else if (scene.name == GameSceneName)
+			else if (activeScene.name == GameSceneName)
 			{
-				_mainGameSceneSetupData = Resources.FindObjectsOfTypeAll<MainGameSceneSetupData>().FirstOrDefault();
-				if (_mainGameSceneSetupData == null) return;
-				var level = _mainGameSceneSetupData.difficultyLevel;
+				_standardLevelSceneSetupData = Resources.FindObjectsOfTypeAll<StandardLevelSceneSetupDataSO>().FirstOrDefault();
+				if (_standardLevelSceneSetupData == null) return;
+				var level = _standardLevelSceneSetupData.difficultyBeatmap;
 				var beatmap = level as CustomLevel.CustomDifficultyBeatmap;
 				if (beatmap != null)
 				{
@@ -149,32 +154,48 @@ namespace SongLoaderPlugin
 					Resources.FindObjectsOfTypeAll<BeatmapObjectSpawnController>().FirstOrDefault();
 				if (beatmapObjectSpawnController != null)
 				{
+					var disappearingArrows = beatmapObjectSpawnController.GetPrivateField<bool>("_disappearingArrows");
+
 					beatmapObjectSpawnController.Init(_currentLevelPlaying.level.beatsPerMinute,
 						_currentLevelPlaying.beatmapData.beatmapLinesData.Length,
-						_currentLevelPlaying.noteJumpMovementSpeed);
+						_currentLevelPlaying.noteJumpMovementSpeed, disappearingArrows);
 				}
 			}
+			
+			//Also change beatmap to no arrow if no arrow was selected, since Beat Saber no longer does runtime conversion for that.
+			if (!_noArrowsSelected) return;
+			var gameplayCore = Resources.FindObjectsOfTypeAll<GameplayCoreSceneSetup>().FirstOrDefault();
+			if (gameplayCore == null) return;
+			Console.WriteLine("Applying no arrow transformation");
+			var transformedBeatmap = BeatmapDataNoArrowsTransform.CreateTransformedData(_currentLevelPlaying.beatmapData);
+			var beatmapDataModel = gameplayCore.GetPrivateField<BeatmapDataModel>("_beatmapDataModel");
+			beatmapDataModel.SetPrivateField("_beatmapData", transformedBeatmap);
 		}
 
-		private void StandardLevelListViewControllerOnDidSelectLevelEvent(StandardLevelListViewController arg1, IStandardLevel level)
+		private void StandardLevelListViewControllerOnDidSelectLevelEvent(LevelListViewController levelListViewController, IBeatmapLevel level)
 		{
 			var customLevel = level as CustomLevel;
 			if (customLevel == null) return;
 
 			if (customLevel.audioClip != TemporaryAudioClip || customLevel.AudioClipLoading) return;
 
-			var levels = arg1.GetPrivateField<IStandardLevel[]>("_levels").ToList();
+			var levels = levelListViewController.GetPrivateField<IBeatmapLevel[]>("_levels").ToList();
 			
 			Action callback = delegate
 			{
-				arg1.SetPrivateField("_selectedLevel", null);
-				arg1.HandleLevelSelectionDidChange(levels.IndexOf(customLevel), true);
+				levelListViewController.SetPrivateField("_selectedLevel", null);
+				levelListViewController.HandleLevelListTableViewDidSelectRow(null, levels.IndexOf(customLevel));
 			};
 
 			customLevel.FixBPMAndGetNoteJumpMovementSpeed();
 			StartCoroutine(LoadAudio(
 				"file:///" + customLevel.customSongInfo.path + "/" + customLevel.customSongInfo.GetAudioPath(), customLevel,
 				callback));
+		}
+
+		private void OnDidSelectBeatmapCharacteristicEvent(BeatmapCharacteristicSelectionViewController viewController, BeatmapCharacteristicSO characteristic)
+		{
+			_noArrowsSelected = characteristic.characteristicName == "No Arrows";
 		}
 
 		public void LoadAudioClipForLevel(CustomLevel customLevel, Action<CustomLevel> clipReadyCallback)
@@ -196,39 +217,10 @@ namespace SongLoaderPlugin
 		private void StandardLevelDetailControllerOnDidPressPlayButtonEvent(StandardLevelDetailViewController songDetailViewController)
 		{
 			if (!NoteHitVolumeChanger.PrefabFound) return;
-			var level = songDetailViewController.difficultyLevel.level;
+			var level = songDetailViewController.difficultyBeatmap.level;
 			var song = CustomLevels.FirstOrDefault(x => x.levelID == level.levelID);
 			if (song == null) return;
 			NoteHitVolumeChanger.SetVolume(song.customSongInfo.noteHitVolume, song.customSongInfo.noteMissVolume);
-		}
-
-		private void CreateCustomLevelCollections()
-		{
-			var originalCollections = Resources.FindObjectsOfTypeAll<LevelCollectionsForGameplayModes>().FirstOrDefault();
-			
-			_standardLevelCollection = ScriptableObject.CreateInstance<CustomLevelCollectionSO>();
-			_standardLevelCollection.Init(originalCollections.GetLevels(GameplayMode.SoloStandard));
-
-			_oneSaberLevelCollection = ScriptableObject.CreateInstance<CustomLevelCollectionSO>();
-			_oneSaberLevelCollection.Init(originalCollections.GetLevels(GameplayMode.SoloOneSaber));
-			
-			_noArrowsLevelCollection = ScriptableObject.CreateInstance<CustomLevelCollectionSO>();
-			_noArrowsLevelCollection.Init(originalCollections.GetLevels(GameplayMode.SoloNoArrows));
-			
-			_partyLevelCollection = ScriptableObject.CreateInstance<CustomLevelCollectionSO>();
-			_partyLevelCollection.Init(originalCollections.GetLevels(GameplayMode.PartyStandard));
-
-			_customLevelCollectionsForGameplayModes =
-				ScriptableObject.CreateInstance<CustomLevelCollectionsForGameplayModes>();
-
-			var standard = new CustomLevelCollectionForGameplayMode(GameplayMode.SoloStandard, _standardLevelCollection);
-			var oneSaber = new CustomLevelCollectionForGameplayMode(GameplayMode.SoloOneSaber, _oneSaberLevelCollection);
-			var noArrows = new CustomLevelCollectionForGameplayMode(GameplayMode.SoloNoArrows, _noArrowsLevelCollection);
-			var party = new CustomLevelCollectionForGameplayMode(GameplayMode.PartyStandard, _partyLevelCollection);
-
-			_customLevelCollectionsForGameplayModes.SetCollections(
-				new LevelCollectionsForGameplayModes.LevelCollectionForGameplayMode[]
-					{standard, oneSaber, noArrows, party});
 		}
 
 		public void RefreshSongs(bool fullRefresh = true)
@@ -257,10 +249,7 @@ namespace SongLoaderPlugin
 
 			foreach (var customLevel in CustomLevels)
 			{
-				_standardLevelCollection.LevelList.Remove(customLevel);
-				_oneSaberLevelCollection.LevelList.Remove(customLevel);
-				_noArrowsLevelCollection.LevelList.Remove(customLevel);
-				_partyLevelCollection.LevelList.Remove(customLevel);
+				CustomLevelCollectionSO.RemoveLevel(customLevel);
 			}
 
 			RetrieveAllSongs(fullRefresh);
@@ -278,7 +267,7 @@ namespace SongLoaderPlugin
 			RemoveSong(CustomLevels.FirstOrDefault(x => x.levelID == levelID));
 		}
 
-		public void RemoveSong(IStandardLevel level)
+		public void RemoveSong(IBeatmapLevel level)
 		{
 			if (level == null) return;
 			RemoveSong(level as CustomLevel);
@@ -287,11 +276,8 @@ namespace SongLoaderPlugin
 		public void RemoveSong(CustomLevel customLevel)
 		{
 			if (customLevel == null) return;
-			
-			_standardLevelCollection.LevelList.Remove(customLevel);
-			_oneSaberLevelCollection.LevelList.Remove(customLevel);
-			_noArrowsLevelCollection.LevelList.Remove(customLevel);
-			_partyLevelCollection.LevelList.Remove(customLevel);
+
+			CustomLevelCollectionSO.RemoveLevel(customLevel);
 
 			foreach (var difficultyBeatmap in customLevel.difficultyBeatmaps)
 			{
@@ -314,9 +300,7 @@ namespace SongLoaderPlugin
 			var scoresToRemove = new List<LeaderboardScoreUploader.ScoreData>();
 			foreach (var scoreData in scores)
 			{
-				var split = scoreData._leaderboardId.Split('_');
-				var levelID = split[0];
-				if (CustomLevels.Any(x => x.levelID == levelID))
+				if (scoreData.beatmap.level is CustomLevel)
 				{
 					Log("Removing a custom score here");
 					scoresToRemove.Add(scoreData);
@@ -539,16 +523,7 @@ namespace SongLoaderPlugin
 
 				foreach (var customLevel in CustomLevels)
 				{	
-					if (customLevel.customSongInfo.oneSaber)
-					{
-						_oneSaberLevelCollection.LevelList.Add(customLevel);
-					}
-					else
-					{
-						_standardLevelCollection.LevelList.Add(customLevel);
-						_noArrowsLevelCollection.LevelList.Add(customLevel);
-						_partyLevelCollection.LevelList.Add(customLevel);
-					}
+					CustomLevelCollectionSO.AddCustomLevel(customLevel);
 				}
 
 				AreSongsLoaded = true;
@@ -575,12 +550,12 @@ namespace SongLoaderPlugin
 				newLevel.Init(song);
 				newLevel.SetAudioClip(TemporaryAudioClip);
 
-				var difficultyBeatmaps = new List<StandardLevelSO.DifficultyBeatmap>();
+				var difficultyBeatmaps = new List<LevelSO.DifficultyBeatmap>();
 				foreach (var diffBeatmap in song.difficultyLevels)
 				{
 					try
 					{
-						var difficulty = diffBeatmap.difficulty.ToEnum(LevelDifficulty.Normal);
+						var difficulty = diffBeatmap.difficulty.ToEnum(BeatmapDifficulty.Normal);
 
 						if (string.IsNullOrEmpty(diffBeatmap.json))
 						{
@@ -642,7 +617,7 @@ namespace SongLoaderPlugin
 			for (int i = 0; i < diffs.AsArray.Count; i++)
 			{
 				n = diffs[i];
-				var difficulty = Utils.ToEnum(n["difficulty"], LevelDifficulty.Normal);
+				var difficulty = Utils.ToEnum(n["difficulty"], BeatmapDifficulty.Normal);
 				var difficultyRank = (int)difficulty;
 				
 				diffLevels.Add(new CustomSongInfo.DifficultyLevel
@@ -680,7 +655,7 @@ namespace SongLoaderPlugin
 
 		private void ReloadCurrentSong()
 		{
-			if (!_mainGameSceneSetupData.gameplayOptions.noEnergy) return;
+			if (!_standardLevelSceneSetupData.gameplayCoreSetupData.gameplayModifiers.noFail) return;
 			var reloadedLevel = LoadSong(GetCustomSongInfo(_currentLevelPlaying.customLevel.customSongInfo.path));
 			if (reloadedLevel == null) return;
 			
@@ -689,26 +664,25 @@ namespace SongLoaderPlugin
 					
 			RemoveSong(_currentLevelPlaying.customLevel);
 			CustomLevels.Add(reloadedLevel);
-					
-			if (reloadedLevel.customSongInfo.oneSaber)
-			{
-				_oneSaberLevelCollection.LevelList.Add(reloadedLevel);
-			}
-			else
-			{
-				_standardLevelCollection.LevelList.Add(reloadedLevel);
-				_noArrowsLevelCollection.LevelList.Add(reloadedLevel);
-				_partyLevelCollection.LevelList.Add(reloadedLevel);
-			}
-					
+			
+			CustomLevelCollectionSO.AddCustomLevel(reloadedLevel);
+			
 			var orderedList = CustomLevels.OrderBy(x => x.songName);
 			CustomLevels = orderedList.ToList();
-					
-			_mainGameSceneSetupData.WillBeUsedInTransition();
-			_mainGameSceneSetupData.Init(
-				reloadedLevel.GetDifficultyLevel(_mainGameSceneSetupData.difficultyLevel.difficulty),
-				_mainGameSceneSetupData.gameplayOptions, _mainGameSceneSetupData.gameplayMode, 0);
-			_mainGameSceneSetupData.TransitionToScene(0.35f);
+			
+			_standardLevelSceneSetupData.__WillBeUsedInTransition();
+			_standardLevelSceneSetupData.Init(
+				reloadedLevel.GetDifficultyBeatmap(_standardLevelSceneSetupData.difficultyBeatmap.difficulty),
+				_standardLevelSceneSetupData.gameplayCoreSetupData);
+
+			var restartController = Resources.FindObjectsOfTypeAll<StandardLevelRestartController>().FirstOrDefault();
+			if (restartController == null)
+			{
+				Console.WriteLine("No restart controller!");
+				return;
+			}
+			
+			restartController.RestartLevel();
 		}
 
 		private static string EncodePath(string path)

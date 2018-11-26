@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace SongLoaderPlugin.OverrideClasses
 {
-	public class CustomLevel : StandardLevelSO, IScriptableObjectResetable
+	public class CustomLevel : LevelSO, IScriptableObjectResetable
 	{	
 		public CustomSongInfo customSongInfo { get; private set; }
 		public bool AudioClipLoading { get; set; }
@@ -25,7 +25,7 @@ namespace SongLoaderPlugin.OverrideClasses
 			_shufflePeriod = customSongInfo.shufflePeriod;
 			_previewStartTime = customSongInfo.previewStartTime;
 			_previewDuration = customSongInfo.previewDuration;
-			_environmentSceneInfo = LoadSceneInfo(customSongInfo.environmentName);
+			_environmentSceneInfo = EnvironmentsLoader.GetSceneInfo(customSongInfo.environmentName);
 		}
 
 		public void SetAudioClip(AudioClip newAudioClip)
@@ -42,11 +42,10 @@ namespace SongLoaderPlugin.OverrideClasses
 		{
 			_difficultyBeatmaps = newDifficultyBeatmaps;
 		}
-		
-		private static SceneInfo LoadSceneInfo(string environmentName)
+
+		public void SetBeatmapCharacteristics(BeatmapCharacteristicSO[] newBeatmapCharacteristics)
 		{
-			var sceneInfo = Resources.Load<SceneInfo>("SceneInfo/" + environmentName + "SceneInfo");
-			return sceneInfo == null ? Resources.Load<SceneInfo>("SceneInfo/DefaultEnvironmentSceneInfo") : sceneInfo;
+			_beatmapCharacteristics = newBeatmapCharacteristics;
 		}
 
 		public void FixBPMAndGetNoteJumpMovementSpeed()
@@ -73,7 +72,7 @@ namespace SongLoaderPlugin.OverrideClasses
 
 				if (!noteSpeed.HasValue) return;
 				var diffBeatmap = _difficultyBeatmaps.FirstOrDefault(x =>
-					diffLevel.difficulty.ToEnum(LevelDifficulty.Normal) == x.difficulty);
+					diffLevel.difficulty.ToEnum(BeatmapDifficulty.Normal) == x.difficulty);
 				var customBeatmap = diffBeatmap as CustomDifficultyBeatmap;
 				if (customBeatmap == null) continue;
 				customBeatmap.SetNoteJumpMovementSpeed(noteSpeed.Value);
@@ -114,7 +113,7 @@ namespace SongLoaderPlugin.OverrideClasses
 		
 		public class CustomDifficultyBeatmap : DifficultyBeatmap
 		{
-			public CustomDifficultyBeatmap(IStandardLevel parentLevel, LevelDifficulty difficulty, int difficultyRank, float noteJumpMovementSpeed, BeatmapDataSO beatmapData) : base(parentLevel, difficulty, difficultyRank, noteJumpMovementSpeed, beatmapData)
+			public CustomDifficultyBeatmap(IBeatmapLevel parentLevel, BeatmapDifficulty difficulty, int difficultyRank, float noteJumpMovementSpeed, BeatmapDataSO beatmapData) : base(parentLevel, difficulty, difficultyRank, noteJumpMovementSpeed, beatmapData)
 			{
 			}
 

@@ -1,12 +1,14 @@
-﻿using IllusionPlugin;
+﻿using System;
+using IllusionPlugin;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace SongLoaderPlugin
 {
 	public class Plugin : IPlugin
 	{
-		public const string VersionNumber = "v4.3.2";
+		public const string VersionNumber = "v5.0.2-beta";
+
+		private SceneEvents _sceneEvents;
 		
 		public string Name
 		{
@@ -20,20 +22,18 @@ namespace SongLoaderPlugin
 		
 		public void OnApplicationStart()
 		{
-			SceneManager.sceneLoaded += SceneManagerOnSceneLoaded;
+			_sceneEvents = new GameObject("menu-signal").AddComponent<SceneEvents>();
+			_sceneEvents.MenuSceneEnabled += OnMenuSceneEnabled;
+		}
+
+		private void OnMenuSceneEnabled()
+		{
+			SongLoader.OnLoad();
 		}
 
 		public void OnApplicationQuit()
 		{
 			PlayerPrefs.DeleteKey("lbPatched");
-			SceneManager.sceneLoaded -= SceneManagerOnSceneLoaded;
-		}
-
-		private void SceneManagerOnSceneLoaded(Scene newScene, LoadSceneMode mode)
-		{
-			if (newScene.name != SongLoader.MenuSceneName) return;
-			SongLoader.OnLoad();
-			
 		}
 
 		public void OnLevelWasInitialized(int level)
