@@ -39,7 +39,6 @@ namespace SongLoaderPlugin
 				if (_gameScenesManager == null) return;
 
 				_gameScenesManager.transitionDidFinishEvent += GameScenesManagerOnTransitionDidFinishEvent;
-				GameScenesManagerOnTransitionDidFinishEvent();
 			}
 		}
 
