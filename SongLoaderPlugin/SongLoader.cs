@@ -76,7 +76,7 @@ namespace SongLoaderPlugin
 
 		private void OnSceneTransitioned(Scene activeScene)
 		{
-			if (AreSongsLoading)
+			if (AreSongsLoading && activeScene.name != MenuSceneName)
 			{
 				//Scene changing while songs are loading. Since we are using a separate thread while loading, this is bad and could cause a crash.
 				//So we have to stop loading.
