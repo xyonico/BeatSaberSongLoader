@@ -158,7 +158,7 @@ namespace SongLoaderPlugin
 
 					beatmapObjectSpawnController.Init(_currentLevelPlaying.level.beatsPerMinute,
 						_currentLevelPlaying.beatmapData.beatmapLinesData.Length,
-						_currentLevelPlaying.noteJumpMovementSpeed, disappearingArrows);
+						_currentLevelPlaying.noteJumpMovementSpeed, _currentLevelPlaying.noteJumpStartBeatOffset, disappearingArrows);
 				}
 			}
 			
@@ -567,7 +567,7 @@ namespace SongLoaderPlugin
 						newBeatmapData.SetJsonData(diffBeatmap.json);
 
 						var newDiffBeatmap = new CustomLevel.CustomDifficultyBeatmap(newLevel, difficulty,
-							diffBeatmap.difficultyRank, diffBeatmap.noteJumpMovementSpeed, newBeatmapData);
+							diffBeatmap.difficultyRank, diffBeatmap.noteJumpMovementSpeed, diffBeatmap.noteJumpStartBeatOffset, newBeatmapData);
 						difficultyBeatmaps.Add(newDiffBeatmap);
 					}
 					catch (Exception e)

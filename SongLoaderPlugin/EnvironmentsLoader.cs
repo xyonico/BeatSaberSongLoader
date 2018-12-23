@@ -12,11 +12,11 @@ namespace SongLoaderPlugin
 		
 		public static SceneInfo GetSceneInfo(string environmentName)
 		{
-			var sceneInfo = SceneInfos.FirstOrDefault(x => x.sceneName == environmentName);
-			if (sceneInfo != null) return sceneInfo;
+            var sceneInfo = SceneInfos.FirstOrDefault(x => x.name == environmentName + "SceneInfo");
+            if (sceneInfo != null) return sceneInfo;
 
-			sceneInfo = Resources.FindObjectsOfTypeAll<SceneInfo>().FirstOrDefault(x => x.sceneName == environmentName);
-			if (sceneInfo == null)
+            sceneInfo = Resources.FindObjectsOfTypeAll<SceneInfo>().FirstOrDefault(x => x.name == environmentName + "SceneInfo");
+            if (sceneInfo == null)
 			{
 				Console.WriteLine("Failed to find scene info " + environmentName);
 				return GetSceneInfo(DefaultEnvironmentName);

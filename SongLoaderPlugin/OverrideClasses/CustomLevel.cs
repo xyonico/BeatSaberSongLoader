@@ -56,7 +56,8 @@ namespace SongLoaderPlugin.OverrideClasses
 			{
 				if (string.IsNullOrEmpty(diffLevel.json)) continue;
 				float? bpm, noteSpeed;
-				GetBPMAndNoteJump(diffLevel.json, out bpm, out noteSpeed);
+                int? noteJumpStartBeatOffset; 
+                GetBPMAndNoteJump(diffLevel.json, out bpm, out noteSpeed, out noteJumpStartBeatOffset);
 
 				if (bpm.HasValue)
 				{
@@ -76,7 +77,9 @@ namespace SongLoaderPlugin.OverrideClasses
 				var customBeatmap = diffBeatmap as CustomDifficultyBeatmap;
 				if (customBeatmap == null) continue;
 				customBeatmap.SetNoteJumpMovementSpeed(noteSpeed.Value);
-			}
+                if(noteJumpStartBeatOffset.HasValue)
+                    customBeatmap.SetNoteJumpStartBeatOffset(noteJumpStartBeatOffset.Value);
+            }
 
 			_beatsPerMinute = bpms.OrderByDescending(x => x.Value).First().Key;
 
@@ -92,10 +95,11 @@ namespace SongLoaderPlugin.OverrideClasses
 		}
 
 		//This is quicker than using a JSON parser
-		private void GetBPMAndNoteJump(string json, out float? bpm, out float? noteJumpSpeed)
+		private void GetBPMAndNoteJump(string json, out float? bpm, out float? noteJumpSpeed, out int? noteJumpStartBeatOffset)
 		{
 			bpm = null;
 			noteJumpSpeed = null;
+            noteJumpStartBeatOffset = null;
 			var split = json.Split(':');
 			for (var i = 0; i < split.Length; i++)
 			{
@@ -108,12 +112,16 @@ namespace SongLoaderPlugin.OverrideClasses
 				{
 					noteJumpSpeed = Convert.ToSingle(split[i + 1].Split(',')[0], CultureInfo.InvariantCulture);
 				}
-			}
+                if (split[i].Contains("_noteJumpStartBeatOffset"))
+                {
+                    noteJumpStartBeatOffset = Convert.ToInt32(split[i + 1].Split(',')[0], CultureInfo.InvariantCulture);
+                }
+            }
 		}
 		
 		public class CustomDifficultyBeatmap : DifficultyBeatmap
 		{
-			public CustomDifficultyBeatmap(IBeatmapLevel parentLevel, BeatmapDifficulty difficulty, int difficultyRank, float noteJumpMovementSpeed, BeatmapDataSO beatmapData) : base(parentLevel, difficulty, difficultyRank, noteJumpMovementSpeed, beatmapData)
+			public CustomDifficultyBeatmap(IBeatmapLevel parentLevel, BeatmapDifficulty difficulty, int difficultyRank, float noteJumpMovementSpeed, int noteJumpStartBeatOffset, BeatmapDataSO beatmapData) : base(parentLevel, difficulty, difficultyRank, noteJumpMovementSpeed, noteJumpStartBeatOffset, beatmapData)
 			{
 			}
 
@@ -131,7 +139,11 @@ namespace SongLoaderPlugin.OverrideClasses
 			{
 				_noteJumpMovementSpeed = newNoteJumpMovementSpeed;
 			}
-		}
+            public void SetNoteJumpStartBeatOffset(int newNoteJumpStartBeatOffset)
+            {
+                _noteJumpStartBeatOffset = newNoteJumpStartBeatOffset;
+            }
+        }
 
 		public void Reset()
 		{
