@@ -31,8 +31,11 @@ namespace SongLoaderPlugin
 		private LeaderboardScoreUploader _leaderboardScoreUploader;
 		private StandardLevelDetailViewController _standardLevelDetailViewController;
 		private StandardLevelSceneSetupDataSO _standardLevelSceneSetupData;
-		
-		private readonly ScriptableObjectPool<CustomLevel> _customLevelPool = new ScriptableObjectPool<CustomLevel>();
+        private BeatmapCharacteristicSelectionViewController _characteristicViewController;
+        private LevelListViewController _LevelListViewController;
+
+
+        private readonly ScriptableObjectPool<CustomLevel> _customLevelPool = new ScriptableObjectPool<CustomLevel>();
 		private readonly ScriptableObjectPool<CustomBeatmapDataSO> _beatmapDataPool = new ScriptableObjectPool<CustomBeatmapDataSO>();
 
 		private ProgressBar _progressBar;
@@ -107,22 +110,33 @@ namespace SongLoaderPlugin
 				{
 					CustomLevelCollectionSO.ReplaceReferences();
 				}
-				
+				if(_standardLevelDetailViewController == null)
+                {
 				_standardLevelDetailViewController = Resources.FindObjectsOfTypeAll<StandardLevelDetailViewController>().FirstOrDefault();
 				if (_standardLevelDetailViewController == null) return;
 				_standardLevelDetailViewController.didPressPlayButtonEvent += StandardLevelDetailControllerOnDidPressPlayButtonEvent;
-				
-				var levelListViewController = Resources.FindObjectsOfTypeAll<LevelListViewController>().FirstOrDefault();
-				if (levelListViewController == null) return;
-				
-				levelListViewController.didSelectLevelEvent += StandardLevelListViewControllerOnDidSelectLevelEvent;
+                }
 
-				var characteristicViewController = Resources.FindObjectsOfTypeAll<BeatmapCharacteristicSelectionViewController>().FirstOrDefault();
-				if (characteristicViewController == null) return;
-				
-				characteristicViewController.didSelectBeatmapCharacteristicEvent += OnDidSelectBeatmapCharacteristicEvent;
-			}
-			else if (activeScene.name == GameSceneName)
+                if (_LevelListViewController == null)
+                {
+                    _LevelListViewController = Resources.FindObjectsOfTypeAll<LevelListViewController>().FirstOrDefault();
+                    if (_LevelListViewController == null) return;
+
+                    _LevelListViewController.didSelectLevelEvent += StandardLevelListViewControllerOnDidSelectLevelEvent;
+                }
+
+
+
+                if (_characteristicViewController == null)
+                {
+                    _characteristicViewController = Resources.FindObjectsOfTypeAll<BeatmapCharacteristicSelectionViewController>().FirstOrDefault();
+                    if (_characteristicViewController == null) return;
+
+                    _characteristicViewController.didSelectBeatmapCharacteristicEvent += OnDidSelectBeatmapCharacteristicEvent;
+                }
+
+            }
+            else if (activeScene.name == GameSceneName)
 			{
 				_standardLevelSceneSetupData = Resources.FindObjectsOfTypeAll<StandardLevelSceneSetupDataSO>().FirstOrDefault();
 				if (_standardLevelSceneSetupData == null) return;
@@ -161,9 +175,10 @@ namespace SongLoaderPlugin
 						_currentLevelPlaying.noteJumpMovementSpeed, _currentLevelPlaying.noteJumpStartBeatOffset, disappearingArrows);
 				}
 			}
-			
-			//Also change beatmap to no arrow if no arrow was selected, since Beat Saber no longer does runtime conversion for that.
-			if (!_noArrowsSelected) return;
+
+            //Also change beatmap to no arrow if no arrow was selected, since Beat Saber no longer does runtime conversion for that.
+
+            if (!_noArrowsSelected) return;
 			var gameplayCore = Resources.FindObjectsOfTypeAll<GameplayCoreSceneSetup>().FirstOrDefault();
 			if (gameplayCore == null) return;
 			Console.WriteLine("Applying no arrow transformation");
@@ -174,6 +189,7 @@ namespace SongLoaderPlugin
 
 		private void StandardLevelListViewControllerOnDidSelectLevelEvent(LevelListViewController levelListViewController, IBeatmapLevel level)
 		{
+            Log("Level selected");
 			var customLevel = level as CustomLevel;
 			if (customLevel == null) return;
 
@@ -195,6 +211,7 @@ namespace SongLoaderPlugin
 
 		private void OnDidSelectBeatmapCharacteristicEvent(BeatmapCharacteristicSelectionViewController viewController, BeatmapCharacteristicSO characteristic)
 		{
+            Log(characteristic.characteristicName);
 			_noArrowsSelected = characteristic.characteristicName == "No Arrows";
 		}
 
