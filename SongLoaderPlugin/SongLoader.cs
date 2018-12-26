@@ -79,6 +79,7 @@ namespace SongLoaderPlugin
 
 		private void OnSceneTransitioned(Scene activeScene)
 		{
+            GameObject.Destroy(GameObject.Find("SongLoader Color Setter"));
 			if (AreSongsLoading)
 			{
 				//Scene changing while songs are loading. Since we are using a separate thread while loading, this is bad and could cause a crash.
@@ -154,6 +155,7 @@ namespace SongLoaderPlugin
 				var song = CustomLevels.FirstOrDefault(x => x.levelID == level.level.levelID);
 				if (song == null) return;
 				NoteHitVolumeChanger.SetVolume(song.customSongInfo.noteHitVolume, song.customSongInfo.noteMissVolume);
+                song.SetSongColors(_currentLevelPlaying.colorLeft, _currentLevelPlaying.colorRight, _currentLevelPlaying.hasCustomColors);
 			}
 		}
 
